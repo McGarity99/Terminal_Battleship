@@ -56,7 +56,11 @@ void prompt();
 void playerFire(int row, int col);
 void compFire();
 bool compSmartFire();
+bool checkVessel(char arr[10][10], char code);
+void checkAfterPlayer();
+void checkAfterComp();
 
+/* Functions defined below this line -------------------------------------- */
 
 int main() {
   int ref = 0;
@@ -65,6 +69,7 @@ int main() {
   printWelcome();
   setPlayerShips();
   setCompShips();
+  
   while (!playerWon && !compWon) {
     printGame(playerSonar, false);
     printGame(playerBoard, true);
@@ -76,6 +81,8 @@ int main() {
     prompt();
     compFire();
   } //while gameplay loop
+  
+  return 0;
 } //main function
 
 /*
@@ -743,3 +750,19 @@ bool compSmartFire() {
   } //check up
   return false;
 } //compSmartFire
+
+
+bool checkVessel(char arr[10][10], char code) {
+  bool vesselFound = false;
+  for (int i = 0; i <= 9; i++) {
+    for (int j = 0; j <= 9; j++) {
+      if (arr[i][j] == code)
+	vesselFound = true;
+    } //inner for
+  } //outer for
+  return vesselFound;
+} //checkCarrier
+
+void checkAfterPlayer() {
+  
+} //checkAfterPlayer

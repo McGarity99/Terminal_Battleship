@@ -764,5 +764,58 @@ bool checkVessel(char arr[10][10], char code) {
 } //checkCarrier
 
 void checkAfterPlayer() {
-  
+  if (!cCsunk) {
+    cCsunk = checkVessel(compBoard, 'C');
+    if (cCsunk)
+      cout << "You've sunk the enemy Carrier!" << endl;
+  } //if comp carrier not yet reported as sunk
+
+  if (!cDsunk) {
+    cDsunk = checkVessel(compBoard, 'D');
+    if (cDsunk)
+      cout << "You've sunk the enemy Destroyer!" << endl;
+  } //if comp destroyer not yet reported as sunk
+
+  if (!cBSunk) {
+    cBsunk = checkVessel(compBoard, 'B');
+    if (cBsunk)
+      cout << "You've sunk the enemy Battleship!" << endl;
+  } //if comp battleship not yet reported as sunk
+
+  if (!cSsunk) {
+    cSsunk = checkVessel(compBoard, 'S');
+    if (cSsunk)
+      cout << "You've sunk the enemy Submarine!" << endl;
+  } //if comp submarine not yet reported as sunk
+
+  if (!cPsunk) {
+    cPsunk = checkVessel(compBoard, 'P');
+    if (cPsunk)
+      cout << "You've sunk the enemy Patrol Boat!" << endl;
+  } //if comp patrol boat not yet reported as sunk
+
+  if (cCsunk && cDsunk && cBsunk && cSsunk && cPsunk)
+    playerWon = true;
 } //checkAfterPlayer
+
+void checkAfterComp() {
+
+  if (!pCsunk) {
+    pCsunk = checkVessel(playerBoard, 'C');
+    if (pCsunk)
+      cout << "Your Carrier has been sunk!" << endl;
+  } //if player carrier not yet reported as sunk
+
+  if (!pDsunk) {
+    pDsunk = checkVessel(playerBoard, 'D');
+    if (pDsunk)
+      cout << "Your Destroyer has been sunk!" << endl;
+  } //if player destroyer not yet reported as sunk
+
+  if (!pBsunk) {
+    pBsunk = checkVessel(playerBoard, 'B');
+    if (pBsunk)
+      cout << "Your Battleship has been sunk!" << endl;
+  } //if player battleship not yet reported as sunk
+  
+} //checkAfterComp
