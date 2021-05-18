@@ -1,0 +1,745 @@
+#include <cstdlib>
+#include <string>
+#include <iostream>
+#include <time.h>
+#include <chrono>
+#include <thread>
+#include <unistd.h>
+
+using std::cout;
+using std::cin;
+using std::endl;
+using std::string;
+
+
+bool pCsunk = false; //player carrier sunk
+bool pDsunk = false; //player destroyer sunk
+bool pPsunk = false; //player patrol boat sunk
+bool pSsunk = false; //player submarine sunk
+bool pBsunk = false; //player battleship sunk
+
+bool cCsunk = false; //comp carrier sunk
+bool cDsunk = false; //comp destroyer sunk
+bool cPsunk = false; //comp patrol boat sunk
+bool cSsunk = false; //comp submarine sunk
+bool cBsunk = false; //comp battleship sunk
+
+bool playerWon = false;
+bool compWon = false;
+
+bool devMode = true; //set to true to print comp's sonar and fleet for debugging purposes
+
+char playerSonar[10][10]; //represents the player's sonar
+char playerBoard[10][10]; //represents the player's fleet
+
+char compSonar[10][10];
+char compBoard[10][10];
+
+int compPrevRow = -1;
+int compPrevCol = -1;
+
+void printWelcome();
+void printBoard();
+void initialize();
+void printGame(char arr[10][10], bool isPlayerBoard);
+void printComp(char arr[10][10], bool isCompBoard);
+bool occupiedSpace(int startRow, int startCol, int endRow, int endCol, bool isVertical, char arr[10][10]);
+void setPlayerShips();
+void setCompShips();
+void setCarrier(char arr[10][10]);
+void setBattleship(char arr[10][10]);
+void setDestroyer(char arr[10][10]);
+void setSubmarine(char arr[10][10]);
+void setPatrol(char arr[10][10]);
+
+void prompt();
+void playerFire(int row, int col);
+void compFire();
+bool compSmartFire();
+
+
+int main() {
+  int ref = 0;
+  srand(time(0));
+  initialize();
+  printWelcome();
+  setPlayerShips();
+  setCompShips();
+  while (!playerWon && !compWon) {
+    printGame(playerSonar, false);
+    printGame(playerBoard, true);
+    if (devMode) {
+      cout << "devMode = true, printing comp boards" << endl;
+      printComp(compSonar, false);
+      printComp(compBoard, true);
+    } //if devMode is set to true
+    prompt();
+    compFire();
+  } //while gameplay loop
+} //main function
+
+/*
+  This function is called once per execution and greets the player with
+  explanatory messages meant to introduce the game.
+*/
+
+void printWelcome() {
+  cout << "Welcome to Command-Line Battleship!" << endl;
+  cout << "Play against a random-select AI for supremacy on the high seas." << endl;
+  cout << "Ships are placed randomly across the board." << endl;
+  cout << "Ship Codes: " << endl;
+  cout << "\033[4;31mC = Carrier\033[0m" << endl;    
+  cout << "\033[4;32mB = Battleship\033[0m" << endl;
+  cout << "\033[4;34mD = Destroyer\033[0m" << endl;
+  cout << "\033[4;33mS = Submarine\033[0m" << endl;
+  cout << "\033[4;36mP = Patrol Boat\033[0m\n";
+} //printWelcome
+
+void initialize() {
+
+  for (int i = 0; i < 10; i++) {
+    for (int ii = 0; ii < 10; ii++) {
+      playerSonar[i][ii] = '~';
+      playerBoard[i][ii] = '~';
+      compSonar[i][ii] = '~';
+      compBoard[i][ii] = '~';
+    } //inner for-loop
+  } //outter for-loop
+} //initialize
+
+/*
+  This function prints the game board to standard output, based on whether
+  or not the board in question is the player's board. If it is the player's board,
+  then both the player's sonar and the player's fleet is printed.
+*/
+
+void printGame(char arr[10][10], bool isPlayerBoard) {
+  int currentRow = 0;
+  int currentCol = 0;
+  int count = 0;
+  if (!isPlayerBoard) {
+    cout << "Your Sonar:" << endl;
+  } else {
+    cout << "Your Fleet:" << endl;
+  } //if-else for screen message
+  
+  for (int h = 0; h < 43; h++) {
+    if (count % 4 == 0 && count != 0) {
+      cout << currentCol;
+      currentCol++;
+    } else {
+      cout << "-";
+    } //if-else for printing next column index or -
+    count++;
+  } //print the top row -
+  cout << endl;
+
+  for (int i = 0; i < 10; i++) {
+    cout << currentRow << " | ";
+    for (int j = 0; j < 10; j++) {
+      cout << arr[i][j] << " | ";
+    } //inner for traversing columns
+    currentRow++;
+    cout << endl;
+  } //outter for traversing rows (block prints vertical separators)
+  for (int k = 0; k < 43; k++) {
+    cout << "-";
+  } //print bottom row -
+  cout << endl;
+
+  if (!isPlayerBoard) {
+    cout << "X = HIT" << endl;
+    cout << "O = MISS" << endl;
+    cout << endl;
+  } //if printing player's sonar
+  
+} //printGame function
+
+void printComp(char arr[10][10], bool isCompBoard) {
+  int currentRow = 0;
+  int currentCol = 0;
+  int count = 0;
+  if (!isCompBoard) {
+    cout << "Comp Sonar:" << endl;
+  } else {
+    cout << "Comp Fleet:" << endl;
+  } //if-else for screen message
+
+  for (int h = 0; h < 43; h++) {
+    if (count % 4 == 0 && count != 0) {
+      cout << currentCol;
+      currentCol++;
+    } else {
+      cout << "-";
+    } //if-else for printing next column index or -
+    count++;
+  } //for printing top row -
+  cout << endl;
+
+  for (int i = 0; i < 10; i++) {
+    cout << currentRow << " | ";
+    for (int j = 0; j < 10; j++) {
+      cout << arr[i][j] << " | ";
+    } //inner for traversing columns
+    currentRow++;
+    cout << endl;
+  } //outter for traversing rows (block prints vertical separators)
+  for (int k = 0; k < 43; k++) {
+    cout << "-";
+  } //for printing bottom row of -
+  cout << endl;
+
+  if (!isCompBoard) {
+    cout << "X = HIT" << endl;
+    cout << "O = MISS" << endl;
+    cout << endl;
+  } //if printing comp sonar
+} //printComp
+
+/*
+  This function takes in parameters for starting coordinates, ending coordinates, and a boolean
+  for vertical/horizontal orientation. It then checks to ensure the space on the board enclosed
+  within those coordinates contains no pre-occupied spaces, returning true if the space is occupied
+  and false otherwise.
+*/
+
+bool occupiedSpace(int startRow, int startCol, int endRow, int endCol, bool isVertical, char arr[10][10]) {
+  if (isVertical) {
+    for (int i = startRow; i <= endRow; i++) {
+      if (arr[i][endCol] != '~') {
+        return true;
+      } //occupied space found
+    }
+  } //check for available vertical placement
+
+  if (!isVertical) {
+    for (int j = startCol; j <= endCol; j++) {
+      if (arr[endRow][j] != '~') {
+        return true;
+      } //occupied space found
+    }
+  } //check for available horizontal placement
+  return false;
+} //occupiedSpace
+
+void setPlayerShips() {
+  setCarrier(playerBoard);
+  setBattleship(playerBoard);
+  setDestroyer(playerBoard);
+  setSubmarine(playerBoard);
+  setPatrol(playerBoard);
+} //setPlayerShips
+
+void setCompShips() {
+  setCarrier(compBoard);
+  setBattleship(compBoard);
+  setDestroyer(compBoard);
+  setSubmarine(compBoard);
+  setPatrol(compBoard);
+} //setCompShips
+
+/*
+  This function sets the player's carrier gamepiece. It uses random integer generation to determine
+  if the current placement is valid. Since the carrier is the first ship to be placed, this function does not
+  incorporate any error-checking for overlapping another ship.
+*/
+
+void setCarrier(char arr[10][10]) {
+
+  int direction = rand() % 2;
+  bool isVertical = false;
+  int endRow = 0;
+  int endCol = 0;
+
+  int startRow = rand() % 10;
+  int startCol = rand() % 10;
+
+  if (startRow >= 6 && startCol <= 5) { //case for horizontal placement due to startRow being too large
+    isVertical = false;
+  }
+
+  else if (startRow >= 6 && startCol >= 6) { //case for horizontal placement due to startCol being too large
+    isVertical = false;
+    startCol = rand() % 6;
+  }
+
+  else if (startRow <= 5 && startCol >= 6) { //case for vertical placement due to startCol being too large
+    isVertical = true;
+  }
+
+  else if (startRow <= 5 && startCol <= 5) { //optimal case where both startRow & startCol are in bounds
+    isVertical = (direction % 2 == 0);
+  }
+
+  if (isVertical) {
+    cout << "v" << endl;
+    endRow = startRow + 4;
+    endCol = startCol;
+
+    for (int i = startRow; i <= endRow; i++) {
+      arr[i][endCol] = 'C';
+    }
+
+  } else {
+    cout << "h" << endl;
+    endRow = startRow;
+    endCol = startCol + 4;
+
+    for (int i = startCol; i <= endCol; i++) {
+      arr[endRow][i] = 'C';
+    }
+  }
+} //setCarrier
+
+void setBattleship(char arr[10][10]) {
+  int direction = rand() % 2;
+  bool isVertical = false;
+  int endRow = 0;
+  int endCol = 0;
+
+  int startRow = rand() % 10;
+  int startCol = rand() % 10;
+  while (arr[startRow][startCol] != '~') {
+    startRow = rand() % 10;
+    if (arr[startRow][startCol] == '~') {
+      break;
+    }
+    startCol = rand() % 10;
+  }
+
+  if (startRow >= 7 && startCol <= 6) { //case for horizontal placement due to startRow being too large
+    isVertical = false;
+  }
+
+  else if (startRow >= 7 && startCol >= 7) { //case for horizontal placement due to startCol & startRow being too large
+    isVertical = false;
+    startCol = rand() % 7;
+  }
+
+  else if (startRow <= 6 && startCol >= 7) { //case for vertical placement due to startCol being too large
+    isVertical = true;
+  }
+
+  else if (startRow <= 6 && startCol <= 6) { //optimal case where both startRow & startCol are in bounds
+    isVertical = (direction % 2 == 0);
+  }
+
+  if (isVertical) {
+    endRow = startRow + 3;
+    endCol = startCol;
+
+    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+
+      for (int i = startRow; i <= endRow; i++) {
+        if (arr[i][endCol] == '~') {
+	  arr[i][endCol] = 'B';
+	}
+      }
+    } //if space is available for the battleship
+
+    else {
+      setBattleship(arr);
+      return;
+    } //restart the process via recursion to place the battleship
+
+  } else {
+    endRow = startRow;
+    endCol = startCol + 3;
+
+    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+
+      for (int i = startCol; i <= endCol; i++) {
+	if (arr[endRow][i] == '~') {
+          arr[endRow][i] = 'B';
+	}
+      }
+    } //if space is available for the battleship
+
+    else {
+      setBattleship(arr);
+      return;
+    } //restart the process via recursion to place the battleship
+
+  } //if-else for vertical/horizontal
+
+} //setBattleship
+
+void setDestroyer(char arr[10][10]) {
+
+  int direction = rand() % 2;
+  bool isVertical = false;
+  int endRow = 0;
+  int endCol = 0;
+
+  int startRow = rand() % 10;
+  int startCol = rand() % 10;
+  while (arr[startRow][startCol] != '~') {
+    startRow = rand() % 10;
+    if (arr[startRow][startCol] == '~') {
+      break;
+    } //if starting space is empty
+    startCol = rand() % 10;
+  } //recalculate startRow and startCol until empty space found
+
+  if (startRow >= 8 && startCol <= 7) {
+    isVertical = false;
+  } //case for horizontal placement due to startRow being too large
+
+  else if (startRow >= 8 && startCol >= 8) {
+    isVertical = false;
+    startCol = rand() % 8;
+  } //case for horizontal placement due to startCol & startRow being too large
+
+  else if (startRow <= 7 && startCol >= 8) {
+    isVertical = true;
+  } //case for vertical placement due to startCol being too large
+
+  else if (startRow <= 7 && startCol <= 7) {
+    isVertical = (direction % 2 == 0);
+  } //optimal case where both startRow & startCol are in bounds
+
+  if (isVertical) {
+    endRow = startRow + 2;
+    endCol = startCol;
+
+    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+      for (int i = startRow; i <= endRow; i++) {
+	arr[i][endCol] = 'D';
+      } //for-loop placing all destroyer spaces
+    } //if space is available for vertical placement
+
+    else {
+      setDestroyer(arr);
+      return;
+    } //restart process via recusion to place the destroyer
+    
+  } else {
+    endRow = startRow;
+    endCol = startCol + 2;
+
+    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+      for (int j = startCol; j <= endCol; j++) {
+	arr[endRow][j] = 'D';
+      }
+    } //if space is available for horizontal placement
+
+    else {
+      setDestroyer(arr);
+      return;
+    } //restart the process via recursion to place the destroyer
+  } //if-else for vertical/horizontal placement
+} //setDestroyer
+
+void setSubmarine(char arr[10][10]) {
+
+  int direction = rand() % 2;
+  bool isVertical = false;
+  int endRow = 0;
+  int endCol = 0;
+
+  int startRow = rand() % 10;
+  int startCol = rand() % 10;
+  while (arr[startRow][startCol] != '~') {
+    startRow = rand() % 10;
+    if (arr[startRow][startCol] == '~') {
+      break;
+    } //if starting space is empty
+    startCol = rand() % 10;
+  } //recalculate startRow and startCol until empty space found
+
+  if (startRow >=8 && startCol <= 7) {
+    isVertical = false;
+  } //case for horizontal placement with startRow too large
+
+  else if (startRow >= 8 && startCol >= 8) {
+    isVertical = false;
+    startCol = rand() % 8;
+  } //case for horizontal placement with startRow and startCol too large
+
+  else if (startRow <= 7 && startCol >= 8) {
+    isVertical = true;
+  } //case for vertical placement with startCol too large
+
+  else if (startRow <= 7 && startCol <= 7) {
+    isVertical = (direction % 2 == 0);
+  } //optimal case with startRow and startCol within bounds
+
+
+  if (isVertical) {
+    endRow = startRow + 2;
+    endCol = startCol;
+
+    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+      for (int i = startRow; i <= endRow; i++) {
+	arr[i][endCol] = 'S';
+      } //for-loop placing all submarine pieces
+    } //if space is available for vertical placement
+
+    else {
+      setSubmarine(arr);
+      return;
+    } //restart the process via recursion to place the submarine
+    
+  } else {
+    endRow = startRow;
+    endCol = startCol + 2;
+
+    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+      for (int j = startCol; j <= endCol; j++) {
+	arr[endRow][j] = 'S';
+      } //for-loop placing all submarine pieces
+    } //if space is available for horizontal placement
+
+    else {
+      setSubmarine(arr);
+      return;
+    } //restart process via recursion to place the submarine
+  } //if-else for vertical/horizontal orientation
+} //setSubmarine
+
+
+void setPatrol(char arr[10][10]) {
+  int direction = rand() % 2;
+  bool isVertical = false;
+  int endRow = 0;
+  int endCol = 0;
+
+  int startRow = rand() % 10;
+  int startCol = rand() % 10;
+  while (arr[startRow][startCol] != '~') {
+    startRow = rand() % 10;
+    if (arr[startRow][startCol] == '~') {
+      break;
+    } //if starting space is empty
+    startCol = rand() % 10;
+  } //recalculate startRow and startCol until empty space found
+
+  if (startRow >= 9 && startCol <= 8) {
+    isVertical = false;
+  } //case for horizontal placement with startRow too large
+
+  else if (startRow >= 8 && startCol >= 8) {
+    isVertical = false;
+    startCol = rand() % 9;
+  } //case for horizontal placement with startRow and startCol too large
+
+  else if (startRow <= 8 && startCol >= 9) {
+    isVertical = true;
+  } //case for vertical placement with startCol too large
+
+  else if (startRow <= 8 && startCol <= 8) {
+    isVertical = (direction % 2 == 0);
+  } //optimal case with startRow and startCol within bounds
+
+
+  if (isVertical) {
+    endRow = startRow + 1;
+    endCol = startCol;
+
+    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+      for (int i = startRow; i <= endRow; i++) {
+	arr[i][endCol] = 'P';
+      } //for-loop placing all patrol pieces
+    } //if space is available for vertical placement
+
+    else {
+      setPatrol(arr);
+      return;
+    } //restart the process via recursion to place the patrol boat
+    
+  } else {
+    endRow = startRow;
+    endCol = startCol + 1;
+
+    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+      for (int j = startCol; j <= endCol; j++) {
+	arr[endRow][j] = 'P';
+      } //for-loop placing all patrol pieces
+    } //if space is available for horizontal placement
+
+    else {
+      setPatrol(arr);
+      return;
+    } //restart process via recursion to place the patrol boat
+  } //if-else for vertical/horizontal orientation
+} //setPatrol
+
+
+void prompt() {
+  bool rowGood = false;
+  bool colGood = false;
+  string rowStr;
+  string colStr;
+  int rowCoor;
+  int colCoor;
+  
+  cout << endl;
+  cout << "Enter your firing coordinates." << endl;
+  cout << "NOTE: Non-numeric characters interpreted as 0" << endl;
+  while (!rowGood) {
+    cout << "Row: ";
+    cin >> rowStr;
+    rowCoor = std::atoi(rowStr.c_str());
+    if (rowCoor >= 0 && rowCoor <= 9) {
+      rowGood = true;
+    } else {
+      cout << "ERROR: Row out of range" << endl;
+    } //if-else
+  } //while validating row input
+
+  while (!colGood) {
+    cout << "Column: ";
+    cin >> colStr;
+    colCoor = std::atoi(colStr.c_str());
+    if (colCoor >= 0 && colCoor <= 9) {
+      colGood = true;
+    } else {
+      cout << "ERROR: Column out of range" << endl;
+    } //of-else
+  } //while validating col input
+  playerFire(rowCoor, colCoor);
+} //prompt
+
+void playerFire(int row, int col) {
+
+  cout << "Provided Coordinates: " << row << " " << col << endl;
+  
+  sleep(1.5); //timed delay
+  
+  if (playerSonar[row][col] != '~') {
+    cout << "Provided coordinates already used. Try again." << endl;
+    prompt();
+    return;
+  } //if user enters coordinates already used
+
+  if (compBoard[row][col] != '~') {
+    compBoard[row][col] = '!';
+    playerSonar[row][col] = 'X';
+    cout << "HIT! Enemy Sustained Damage" << endl;
+  } //if user scores a hit against the computer
+
+  else {
+    playerSonar[row][col] = 'O';
+    cout << "MISS! Enemy Evaded Attack" << endl;
+  } //else (if user misses)
+
+  sleep(2);
+
+} //playerFire
+
+void compFire() {
+  sleep(2);
+  cout << "Computer is Firing" << endl;
+  sleep(1.5);
+  bool smartFireSuccess = false;
+  if (compPrevRow != -1 && compPrevCol != -1) {
+    smartFireSuccess = compSmartFire();
+  } //if previous turn yielded a hit (smart fire)
+
+  if (!smartFireSuccess) {
+    int rowCoor = rand() % 10;
+    int colCoor = rand() % 10;
+    while (compSonar[rowCoor][colCoor] != '~') {
+      rowCoor = rand() % 10;
+      if (compSonar[rowCoor][colCoor] == '~')
+	break;
+      else colCoor = rand() % 10;
+    } //while validating the coordinates
+
+    if (playerBoard[rowCoor][colCoor] != '~') {
+      playerBoard[rowCoor][colCoor] = '!';
+      compSonar[rowCoor][colCoor] = 'X';
+      cout << "HIT! You've taken damage" << endl;
+      compPrevRow = rowCoor;
+      compPrevCol = colCoor;
+    } //if comp scored a hit against user
+    else {
+      compSonar[rowCoor][colCoor] = 'O';
+      cout << "MISS! You've evaded damage" << endl;
+    } //else (miss)
+  } //regular firing process if smart fire yielded no hit
+  sleep(2);
+} //compFire
+
+bool compSmartFire() {
+  if ((compPrevCol + 1) <= 9) {
+    if (compSonar[compPrevRow][compPrevCol + 1] != '~') {
+      
+    } //if right point is already used
+    else if (playerBoard[compPrevRow][compPrevCol + 1] != '~') {
+      playerBoard[compPrevRow][compPrevCol + 1] = '!';
+      compSonar[compPrevRow][compPrevCol + 1] = 'X';
+      cout << "HIT! You've taken damage" << endl;
+      compPrevCol++;
+      return true;
+    } //if comp scored hit against user
+    else {
+      compSonar[compPrevRow][compPrevCol + 1] = 'O';
+      //cout << "MISS! You've evaded damage" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+      return false;
+    } //else (miss)
+  } //check right
+
+  if ((compPrevCol - 1) >= 0) {
+    if (compSonar[compPrevRow][compPrevCol - 1] != '~') {
+
+    } //if left point is already used
+    else if (playerBoard[compPrevRow][compPrevCol - 1] != '~') {
+      playerBoard[compPrevRow][compPrevCol - 1] = '!';
+      compSonar[compPrevRow][compPrevCol - 1] = 'X';
+      cout << "HIT! You've taken damage" << endl;
+      compPrevCol--;
+      return true;
+    } //if comp scored hit against user
+    else {
+      compSonar[compPrevRow][compPrevCol - 1] = 'O';
+      //cout << "MISS! You've evaded damage" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+      return false;
+    } //else (miss)
+  } //check left
+
+  if ((compPrevRow + 1) <= 9) {
+    if (compSonar[compPrevRow + 1][compPrevCol] != '~') {
+
+    } //if below point is already used
+    else if (playerBoard[compPrevRow + 1][compPrevCol] != '~') {
+      playerBoard[compPrevRow + 1][compPrevCol] = '!';
+      compSonar[compPrevRow + 1][compPrevCol] = 'X';
+      cout << "HIT! You've taken damage" << endl;
+      compPrevRow++;
+      return true;
+    } //if comp scored hit against user
+    else {
+      compSonar[compPrevRow + 1][compPrevCol] = 'O';
+      //cout << "MISS! You've evaded damage" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+      return false;
+    } //else (miss)
+  } //check down
+
+  if ((compPrevRow - 1) >= 0) {
+    if (compSonar[compPrevRow - 1][compPrevCol] != '~') {
+      
+    } //if above point is already used
+    else if (playerBoard[compPrevRow - 1][compPrevCol] != '~') {
+      playerBoard[compPrevRow - 1][compPrevCol] = '!';
+      compSonar[compPrevRow - 1][compPrevCol] = 'X';
+      cout << "HIT! You've taken damage" << endl;
+      compPrevRow--;
+      return true;
+    } //if comp scored hit against user
+    else {
+      compSonar[compPrevRow - 1][compPrevCol] = 'O';
+      //cout << "MISS! You've evaded damage" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+      return false;
+    } //else (miss)
+  } //check up
+  return false;
+} //compSmartFire
