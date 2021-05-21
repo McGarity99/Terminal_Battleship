@@ -73,15 +73,36 @@ int main() {
   while (!playerWon && !compWon) {
     printGame(playerSonar, false);
     printGame(playerBoard, true);
+    
     if (devMode) {
       cout << "devMode = true, printing comp boards" << endl;
       printComp(compSonar, false);
       printComp(compBoard, true);
     } //if devMode is set to true
+    
     prompt();
+    checkAfterPlayer();
+    if (cCsunk && cBsunk && cDsunk && cSsunk && cPsunk) {
+      playerWon = true;
+      break;
+    } //if all comp ships sunk
+    
     compFire();
+    checkAfterComp();
+    if (pCsunk && pBsunk && pDsunk && pSsunk && pPsunk) {
+      compWon = true;
+      break;
+    } //if all player ships sunk
+    
   } //while gameplay loop
   
+  if (playerWon) {
+    cout << "All enemy vessels down! You win!" << endl;
+  } //if player is victorious
+
+  else {
+    cout << "Your fleet is sunk! You lose!" << endl;
+  } //else (comp is victorious)
   return 0;
 } //main function
 
@@ -279,7 +300,6 @@ void setCarrier(char arr[10][10]) {
   }
 
   if (isVertical) {
-    cout << "v" << endl;
     endRow = startRow + 4;
     endCol = startCol;
 
@@ -288,7 +308,6 @@ void setCarrier(char arr[10][10]) {
     }
 
   } else {
-    cout << "h" << endl;
     endRow = startRow;
     endCol = startCol + 4;
 
@@ -669,10 +688,11 @@ void compFire() {
 } //compFire
 
 bool compSmartFire() {
+  cout << "smart fire" << endl;
   if ((compPrevCol + 1) <= 9) {
     if (compSonar[compPrevRow][compPrevCol + 1] != '~') {
       
-    } //if right point is already used
+    } //if right point is already used (do nothing)
     else if (playerBoard[compPrevRow][compPrevCol + 1] != '~') {
       playerBoard[compPrevRow][compPrevCol + 1] = '!';
       compSonar[compPrevRow][compPrevCol + 1] = 'X';
@@ -692,7 +712,7 @@ bool compSmartFire() {
   if ((compPrevCol - 1) >= 0) {
     if (compSonar[compPrevRow][compPrevCol - 1] != '~') {
 
-    } //if left point is already used
+    } //if left point is already used (do nothing)
     else if (playerBoard[compPrevRow][compPrevCol - 1] != '~') {
       playerBoard[compPrevRow][compPrevCol - 1] = '!';
       compSonar[compPrevRow][compPrevCol - 1] = 'X';
@@ -712,7 +732,7 @@ bool compSmartFire() {
   if ((compPrevRow + 1) <= 9) {
     if (compSonar[compPrevRow + 1][compPrevCol] != '~') {
 
-    } //if below point is already used
+    } //if below point is already used (do nothing)
     else if (playerBoard[compPrevRow + 1][compPrevCol] != '~') {
       playerBoard[compPrevRow + 1][compPrevCol] = '!';
       compSonar[compPrevRow + 1][compPrevCol] = 'X';
@@ -732,7 +752,7 @@ bool compSmartFire() {
   if ((compPrevRow - 1) >= 0) {
     if (compSonar[compPrevRow - 1][compPrevCol] != '~') {
       
-    } //if above point is already used
+    } //if above point is already used (do nothing)
     else if (playerBoard[compPrevRow - 1][compPrevCol] != '~') {
       playerBoard[compPrevRow - 1][compPrevCol] = '!';
       compSonar[compPrevRow - 1][compPrevCol] = 'X';
@@ -753,15 +773,15 @@ bool compSmartFire() {
 
 
 bool checkVessel(char arr[10][10], char code) {
-  bool vesselFound = false;
+  bool vesselGone = true;
   for (int i = 0; i <= 9; i++) {
     for (int j = 0; j <= 9; j++) {
       if (arr[i][j] == code)
-	vesselFound = true;
+	vesselGone = false;
     } //inner for
   } //outer for
-  return vesselFound;
-} //checkCarrier
+  return vesselGone;
+} //checkVessel
 
 void checkAfterPlayer() {
   if (!cCsunk) {
@@ -776,7 +796,7 @@ void checkAfterPlayer() {
       cout << "You've sunk the enemy Destroyer!" << endl;
   } //if comp destroyer not yet reported as sunk
 
-  if (!cBSunk) {
+  if (!cBsunk) {
     cBsunk = checkVessel(compBoard, 'B');
     if (cBsunk)
       cout << "You've sunk the enemy Battleship!" << endl;
@@ -817,5 +837,17 @@ void checkAfterComp() {
     if (pBsunk)
       cout << "Your Battleship has been sunk!" << endl;
   } //if player battleship not yet reported as sunk
+
+  if (!pSsunk) {
+    pSsunk = checkVessel(playerBoard, 'S');
+    if (pSsunk)
+      cout << "Your Submarine has been sunk!" << endl;
+  } //if player sub not yet reported as sunk
+
+  if (!pPsunk) {
+    pPsunk = checkVessel(playerBoard, 'P');
+    if (pPsunk)
+      cout << "Your Patrol Boat has been sunk!" << endl;
+  } //if player patrol boat not yet reported as sunk
   
 } //checkAfterComp
