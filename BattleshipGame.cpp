@@ -93,15 +93,16 @@ int main() {
       compWon = true;
       break;
     } //if all player ships sunk
-    
   } //while gameplay loop
   
   if (playerWon) {
     cout << "All enemy vessels down! You win!" << endl;
+    sleep(3);
   } //if player is victorious
 
   else {
     cout << "Your fleet is sunk! You lose!" << endl;
+    sleep(3);
   } //else (comp is victorious)
   return 0;
 } //main function
@@ -123,6 +124,12 @@ void printWelcome() {
   cout << "\033[4;36mP = Patrol Boat\033[0m\n";
 } //printWelcome
 
+/*
+  This function initializes the player's sonar and fleet board
+  as empty (represented as ~ spaces). It does the same for the 
+  computer's sonar and fleet boards.
+ */
+
 void initialize() {
 
   for (int i = 0; i < 10; i++) {
@@ -136,9 +143,9 @@ void initialize() {
 } //initialize
 
 /*
-  This function prints the game board to standard output, based on whether
-  or not the board in question is the player's board. If it is the player's board,
-  then both the player's sonar and the player's fleet is printed.
+  This function prints the player's game boards to standard output.
+  If the board in question is the player's fleet board, then the player's
+  fleet is printed. Else, the player's sonar is printed.
 */
 
 void printGame(char arr[10][10], bool isPlayerBoard) {
@@ -180,8 +187,13 @@ void printGame(char arr[10][10], bool isPlayerBoard) {
     cout << "O = MISS" << endl;
     cout << endl;
   } //if printing player's sonar
-  
 } //printGame function
+
+/*
+  This function prints the computer's game boards to standard output.
+  If the board in question is the computer's fleet board, then the 
+  computer's fleet is printed. Else, the computer's sonar is printed.
+*/
 
 void printComp(char arr[10][10], bool isCompBoard) {
   int currentRow = 0;
@@ -250,6 +262,10 @@ bool occupiedSpace(int startRow, int startCol, int endRow, int endCol, bool isVe
   return false;
 } //occupiedSpace
 
+/*
+  This function simply calls the necessary functions to set the player's ships.
+*/
+
 void setPlayerShips() {
   setCarrier(playerBoard);
   setBattleship(playerBoard);
@@ -257,6 +273,10 @@ void setPlayerShips() {
   setSubmarine(playerBoard);
   setPatrol(playerBoard);
 } //setPlayerShips
+
+/*
+  This function simple calls the necessary functions to set the computer's ships.
+*/
 
 void setCompShips() {
   setCarrier(compBoard);
@@ -316,6 +336,11 @@ void setCarrier(char arr[10][10]) {
     }
   }
 } //setCarrier
+
+/*
+  This function sets the Battleship gamepiece. Since the Battleship is the second piece to be placed,
+  this function incorporates error checking to ensure that the Battleship does not overlap the Carrier.
+*/
 
 void setBattleship(char arr[10][10]) {
   int direction = rand() % 2;
@@ -385,10 +410,14 @@ void setBattleship(char arr[10][10]) {
       setBattleship(arr);
       return;
     } //restart the process via recursion to place the battleship
-
   } //if-else for vertical/horizontal
-
 } //setBattleship
+
+/*
+  This function sets the Destroyer gamepiece. Since the Destroyer is the third ship to be set, 
+  this function incorporates error checking to ensure the Destroyer does not overlap
+  the Carrier or the Battleship.
+*/
 
 void setDestroyer(char arr[10][10]) {
 
@@ -455,6 +484,12 @@ void setDestroyer(char arr[10][10]) {
     } //restart the process via recursion to place the destroyer
   } //if-else for vertical/horizontal placement
 } //setDestroyer
+
+/*
+  This function sets the Submarine gamepiece. Since the Submarine is the fourth piece to be set,
+  this function incorporates error checking to ensure that the Submarine does not overlap
+  the Carrier, Battleship, or Destroyer.
+*/
 
 void setSubmarine(char arr[10][10]) {
 
@@ -523,6 +558,11 @@ void setSubmarine(char arr[10][10]) {
   } //if-else for vertical/horizontal orientation
 } //setSubmarine
 
+/*
+  This function sets the Patrol Boat gamepiece. Since the Patrol Boat is the final piece
+  to be set, this function incorporates error checking to ensure that the Boat does not
+  overlap the Carrier, Battleship, Destroyer, or Submarine.
+*/
 
 void setPatrol(char arr[10][10]) {
   int direction = rand() % 2;
@@ -590,6 +630,11 @@ void setPatrol(char arr[10][10]) {
   } //if-else for vertical/horizontal orientation
 } //setPatrol
 
+/*
+  This function prompts the player to provide input for firing coordinates, asking for Row then Column.
+  Should the player input non-numeric data for either, it will be interpreted as a 0. If the input is
+  numeric but is out of range, the player will be repeatedly prompted until valid input is provided.
+*/
 
 void prompt() {
   bool rowGood = false;
@@ -626,6 +671,12 @@ void prompt() {
   playerFire(rowCoor, colCoor);
 } //prompt
 
+/*
+  This function takes in the player's row and column firing coordinates and "fires"
+  on the computer's fleet. The results of the firing are reported to the player's sonar,
+  be it a hit or a miss.
+*/
+
 void playerFire(int row, int col) {
 
   cout << "Provided Coordinates: " << row << " " << col << endl;
@@ -652,6 +703,15 @@ void playerFire(int row, int col) {
   sleep(2);
 
 } //playerFire
+
+/*
+  This function allows the computer to "fire" on the player's fleet. If the compPrevRow and compPrevCol
+  variables are currently unset (value of -1), then this function calls the compSmartFire function.
+  Should the compSmartFire function fail to yield a hit, then this function will continue with
+  "normal" firing procedures. It will generate random row and col coordinates until an unused space is found.
+  It will also mark the results of the firing on the computer's sonar (in the interest of devMode), as well as
+  alert the player to whether the shot was hit or miss.
+*/
 
 void compFire() {
   sleep(2);
@@ -691,9 +751,10 @@ bool compSmartFire() {
   cout << "smart fire" << endl;
   if ((compPrevCol + 1) <= 9) {
     if (compSonar[compPrevRow][compPrevCol + 1] != '~') {
-      
+      cout << "smartfire right used" << endl;
     } //if right point is already used (do nothing)
     else if (playerBoard[compPrevRow][compPrevCol + 1] != '~') {
+      cout << "smartfire right hit" << endl;
       playerBoard[compPrevRow][compPrevCol + 1] = '!';
       compSonar[compPrevRow][compPrevCol + 1] = 'X';
       cout << "HIT! You've taken damage" << endl;
@@ -701,7 +762,8 @@ bool compSmartFire() {
       return true;
     } //if comp scored hit against user
     else {
-      compSonar[compPrevRow][compPrevCol + 1] = 'O';
+      cout << "smartfire right miss" << endl;
+      //compSonar[compPrevRow][compPrevCol + 1] = 'O';
       //cout << "MISS! You've evaded damage" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
@@ -711,9 +773,10 @@ bool compSmartFire() {
 
   if ((compPrevCol - 1) >= 0) {
     if (compSonar[compPrevRow][compPrevCol - 1] != '~') {
-
+      cout << "smartfire left used" << endl;
     } //if left point is already used (do nothing)
     else if (playerBoard[compPrevRow][compPrevCol - 1] != '~') {
+      cout << "smartfire left hit" << endl;
       playerBoard[compPrevRow][compPrevCol - 1] = '!';
       compSonar[compPrevRow][compPrevCol - 1] = 'X';
       cout << "HIT! You've taken damage" << endl;
@@ -721,7 +784,8 @@ bool compSmartFire() {
       return true;
     } //if comp scored hit against user
     else {
-      compSonar[compPrevRow][compPrevCol - 1] = 'O';
+      cout << "smartfire left missed" << endl;
+      //compSonar[compPrevRow][compPrevCol - 1] = 'O';
       //cout << "MISS! You've evaded damage" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
@@ -731,9 +795,10 @@ bool compSmartFire() {
 
   if ((compPrevRow + 1) <= 9) {
     if (compSonar[compPrevRow + 1][compPrevCol] != '~') {
-
+      cout << "smartfire down used" << endl;
     } //if below point is already used (do nothing)
     else if (playerBoard[compPrevRow + 1][compPrevCol] != '~') {
+      cout << "smartfire down hit" << endl;
       playerBoard[compPrevRow + 1][compPrevCol] = '!';
       compSonar[compPrevRow + 1][compPrevCol] = 'X';
       cout << "HIT! You've taken damage" << endl;
@@ -741,7 +806,8 @@ bool compSmartFire() {
       return true;
     } //if comp scored hit against user
     else {
-      compSonar[compPrevRow + 1][compPrevCol] = 'O';
+      cout << "smartfire down miss" << endl;
+      //compSonar[compPrevRow + 1][compPrevCol] = 'O';
       //cout << "MISS! You've evaded damage" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
@@ -751,9 +817,10 @@ bool compSmartFire() {
 
   if ((compPrevRow - 1) >= 0) {
     if (compSonar[compPrevRow - 1][compPrevCol] != '~') {
-      
+      cout << "smartfire up used" << endl;
     } //if above point is already used (do nothing)
     else if (playerBoard[compPrevRow - 1][compPrevCol] != '~') {
+      cout << "smartfire up hit" << endl;
       playerBoard[compPrevRow - 1][compPrevCol] = '!';
       compSonar[compPrevRow - 1][compPrevCol] = 'X';
       cout << "HIT! You've taken damage" << endl;
@@ -761,7 +828,8 @@ bool compSmartFire() {
       return true;
     } //if comp scored hit against user
     else {
-      compSonar[compPrevRow - 1][compPrevCol] = 'O';
+      cout << "smartfire up miss" << endl;
+      //compSonar[compPrevRow - 1][compPrevCol] = 'O';
       //cout << "MISS! You've evaded damage" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
