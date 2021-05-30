@@ -27,7 +27,7 @@ bool cBsunk = false; //comp battleship sunk
 bool playerWon = false;
 bool compWon = false;
 
-bool devMode = true; //set to true to print comp's sonar and fleet for debugging purposes
+bool devMode = false; //set to true to print comp's sonar and fleet for debugging purposes
 
 char playerSonar[10][10]; //represents the player's sonar
 char playerBoard[10][10]; //represents the player's fleet
@@ -39,6 +39,7 @@ int compPrevRow = -1;
 int compPrevCol = -1;
 
 void printWelcome();
+void askForDev();
 void printBoard();
 void initialize();
 void printGame(char arr[10][10], bool isPlayerBoard);
@@ -67,6 +68,7 @@ int main() {
   srand(time(0));
   initialize();
   printWelcome();
+  askForDev();
   setPlayerShips();
   setCompShips();
   
@@ -123,6 +125,27 @@ void printWelcome() {
   cout << "\033[4;33mS = Submarine\033[0m" << endl;
   cout << "\033[4;36mP = Patrol Boat\033[0m\n";
 } //printWelcome
+
+/*
+  This function prompts the player for whether or not they wish to enable
+  DevMode. The typical case is that the user will play without DevMode, and so
+  the devMode variable is set to false by default.
+*/
+
+void askForDev() {
+  char response;
+  cout << "DevMode allows you to see the computer's fleet and sonar." << endl;
+  cout << "It is priarily used for debugging, but you can also use it to see how the ";
+  cout << "computer side works." << endl;
+  cout << "Would you like to enable DevMode? (y/n) ";
+  cin >> response;
+
+  if (response == 'Y' || response == 'y')
+    devMode = true;
+  cout << "Very well. Starting game." << endl;
+  cout << endl;
+  sleep(1.5);
+} //askForDev
 
 /*
   This function initializes the player's sonar and fleet board
@@ -747,6 +770,11 @@ void compFire() {
   sleep(2);
 } //compFire
 
+/*
+  This function allows the computer to make 'smarter' firing decisions
+  so long as the previous turn yielded a hit.
+*/
+
 bool compSmartFire() {
   cout << "smart fire" << endl;
   if ((compPrevCol + 1) <= 9) {
@@ -765,9 +793,6 @@ bool compSmartFire() {
       cout << "smartfire right miss" << endl;
       //compSonar[compPrevRow][compPrevCol + 1] = 'O';
       //cout << "MISS! You've evaded damage" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
-      return false;
     } //else (miss)
   } //check right
 
@@ -787,9 +812,6 @@ bool compSmartFire() {
       cout << "smartfire left missed" << endl;
       //compSonar[compPrevRow][compPrevCol - 1] = 'O';
       //cout << "MISS! You've evaded damage" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
-      return false;
     } //else (miss)
   } //check left
 
@@ -809,9 +831,6 @@ bool compSmartFire() {
       cout << "smartfire down miss" << endl;
       //compSonar[compPrevRow + 1][compPrevCol] = 'O';
       //cout << "MISS! You've evaded damage" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
-      return false;
     } //else (miss)
   } //check down
 
@@ -831,11 +850,10 @@ bool compSmartFire() {
       cout << "smartfire up miss" << endl;
       //compSonar[compPrevRow - 1][compPrevCol] = 'O';
       //cout << "MISS! You've evaded damage" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
-      return false;
     } //else (miss)
   } //check up
+  compPrevRow = -1;
+  compPrevCol = -1;
   return false;
 } //compSmartFire
 
@@ -890,32 +908,47 @@ void checkAfterComp() {
 
   if (!pCsunk) {
     pCsunk = checkVessel(playerBoard, 'C');
-    if (pCsunk)
+    if (pCsunk) {
       cout << "Your Carrier has been sunk!" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+    } //if player carrier now sunk
   } //if player carrier not yet reported as sunk
 
   if (!pDsunk) {
     pDsunk = checkVessel(playerBoard, 'D');
-    if (pDsunk)
+    if (pDsunk) {
       cout << "Your Destroyer has been sunk!" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+    } //if player destroyer now sunk
   } //if player destroyer not yet reported as sunk
 
   if (!pBsunk) {
     pBsunk = checkVessel(playerBoard, 'B');
-    if (pBsunk)
+    if (pBsunk) {
       cout << "Your Battleship has been sunk!" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+    } //if player battleship now sunk
   } //if player battleship not yet reported as sunk
 
   if (!pSsunk) {
     pSsunk = checkVessel(playerBoard, 'S');
-    if (pSsunk)
+    if (pSsunk) {
       cout << "Your Submarine has been sunk!" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+    } //if player sub now sunk
   } //if player sub not yet reported as sunk
 
   if (!pPsunk) {
     pPsunk = checkVessel(playerBoard, 'P');
-    if (pPsunk)
+    if (pPsunk) {
       cout << "Your Patrol Boat has been sunk!" << endl;
+      compPrevRow = -1;
+      compPrevCol = -1;
+    } //if player patrol now sunk
   } //if player patrol boat not yet reported as sunk
   
 } //checkAfterComp
