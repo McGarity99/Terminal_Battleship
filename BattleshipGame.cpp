@@ -38,6 +38,9 @@ char compBoard[10][10];
 int compPrevRow = -1;
 int compPrevCol = -1;
 
+int oriPrevRow = -1;
+int oriPrevCol = -1;
+
 void printWelcome();
 void askForDev();
 void printBoard();
@@ -55,8 +58,8 @@ void setPatrol(char arr[10][10]);
 
 void prompt();
 void playerFire(int row, int col);
-void compFire();
-bool compSmartFire();
+void compFire(int row, int col);
+void compSmartFire();
 bool checkVessel(char arr[10][10], char code);
 void checkAfterPlayer();
 void checkAfterComp();
@@ -89,7 +92,7 @@ int main() {
       break;
     } //if all comp ships sunk
     
-    compFire();
+    compSmartFire();
     checkAfterComp();
     if (pCsunk && pBsunk && pDsunk && pSsunk && pPsunk) {
       compWon = true;
@@ -736,37 +739,24 @@ void playerFire(int row, int col) {
   alert the player to whether the shot was hit or miss.
 */
 
-void compFire() {
+void compFire(int row, int col) {
+  cout << "Computer is firing" << endl;
   sleep(2);
-  cout << "Computer is Firing" << endl;
-  sleep(1.5);
-  bool smartFireSuccess = false;
-  if (compPrevRow != -1 && compPrevCol != -1) {
-    smartFireSuccess = compSmartFire();
-  } //if previous turn yielded a hit (smart fire)
-
-  if (!smartFireSuccess) {
-    int rowCoor = rand() % 10;
-    int colCoor = rand() % 10;
-    while (compSonar[rowCoor][colCoor] != '~') {
-      rowCoor = rand() % 10;
-      if (compSonar[rowCoor][colCoor] == '~')
-	break;
-      else colCoor = rand() % 10;
-    } //while validating the coordinates
-
-    if (playerBoard[rowCoor][colCoor] != '~') {
-      playerBoard[rowCoor][colCoor] = '!';
-      compSonar[rowCoor][colCoor] = 'X';
-      cout << "HIT! You've taken damage" << endl;
-      compPrevRow = rowCoor;
-      compPrevCol = colCoor;
-    } //if comp scored a hit against user
-    else {
-      compSonar[rowCoor][colCoor] = 'O';
-      cout << "MISS! You've evaded damage" << endl;
-    } //else (miss)
-  } //regular firing process if smart fire yielded no hit
+  if (playerBoard[row][col] != '~') {
+    playerBoard[row][col] = '!';
+    cout << "HIT! You've sustained damage at " << row << " " << col << endl;
+    compSonar[row][col] = 'X';
+    if (oriPrevRow == -1 && oriPrevCol == -1) {
+      oriPrevRow = row;
+      oriPrevCol = col;
+    } //if original coordinates not yet set
+    compPrevRow = row;
+    compPrevCol = col;
+  } //if player takes a hit
+  else {
+    cout << "MISS! You've evaded damage at " << row << " " << col << endl;
+    compSonar[row][col] = 'O';
+  } //else (computer missed)
   sleep(2);
 } //compFire
 
@@ -775,86 +765,180 @@ void compFire() {
   so long as the previous turn yielded a hit.
 */
 
-bool compSmartFire() {
-  cout << "smart fire" << endl;
-  if ((compPrevCol + 1) <= 9) {
-    if (compSonar[compPrevRow][compPrevCol + 1] != '~') {
-      cout << "smartfire right used" << endl;
-    } //if right point is already used (do nothing)
-    else if (playerBoard[compPrevRow][compPrevCol + 1] != '~') {
-      cout << "smartfire right hit" << endl;
-      playerBoard[compPrevRow][compPrevCol + 1] = '!';
-      compSonar[compPrevRow][compPrevCol + 1] = 'X';
-      cout << "HIT! You've taken damage" << endl;
-      compPrevCol++;
-      return true;
-    } //if comp scored hit against user
+void compSmartFire() {
+  if (compPrevRow == -1 && compPrevCol == -1) {
+    int fireRow = rand() % 10;
+    int fireCol = rand() % 10;
+    while (compSonar[fireRow][fireCol] != '~') {
+      fireRow = rand() % 10;
+      if (compSonar[fireRow][fireCol] == '~')
+	break;
+      else fireCol = rand() % 10;
+    } //while validating the coordinates as unused
+    compFire(fireRow, fireCol);
+    return;
+  } //if no previous hit coordinates set (start of game or after sinking a ship)
+  
+  if (compPrevRow == 0 && compPrevCol == 0) {
+    cout << "case 1" << endl;
+    if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
+      compFire(compPrevRow, compPrevCol + 1);
+      return;
+    }
+    else if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
+      compFire(compPrevRow + 1, compPrevCol);
+      return;
+    }
     else {
-      cout << "smartfire right miss" << endl;
-      //compSonar[compPrevRow][compPrevCol + 1] = 'O';
-      //cout << "MISS! You've evaded damage" << endl;
-    } //else (miss)
-  } //check right
+      compPrevRow = oriPrevRow;
+      compPrevCol = oriPrevCol;
+      compSmartFire();
+      return;
+    } //else reset prev coordinates and try again
+  } //check right, down
 
-  if ((compPrevCol - 1) >= 0) {
-    if (compSonar[compPrevRow][compPrevCol - 1] != '~') {
-      cout << "smartfire left used" << endl;
-    } //if left point is already used (do nothing)
-    else if (playerBoard[compPrevRow][compPrevCol - 1] != '~') {
-      cout << "smartfire left hit" << endl;
-      playerBoard[compPrevRow][compPrevCol - 1] = '!';
-      compSonar[compPrevRow][compPrevCol - 1] = 'X';
-      cout << "HIT! You've taken damage" << endl;
-      compPrevCol--;
-      return true;
-    } //if comp scored hit against user
+  if (compPrevRow == 0 && 0 < compPrevCol && compPrevCol <= 8) {
+    cout << "case 2" << endl;
+    if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
+      compFire(compPrevRow, compPrevCol + 1);
+      return;
+    }
+    else if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
+      compFire(compPrevRow + 1, compPrevCol);
+      return;
+    } 
+    else if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
+      compFire(compPrevRow, compPrevCol - 1);
+      return;
+    }
     else {
-      cout << "smartfire left missed" << endl;
-      //compSonar[compPrevRow][compPrevCol - 1] = 'O';
-      //cout << "MISS! You've evaded damage" << endl;
-    } //else (miss)
-  } //check left
+      compPrevRow = oriPrevRow;
+      compPrevCol = oriPrevCol;
+      compSmartFire();
+      return;
+    } //else reset prev cooridnates and try again
+  } //check right, down, left
 
-  if ((compPrevRow + 1) <= 9) {
-    if (compSonar[compPrevRow + 1][compPrevCol] != '~') {
-      cout << "smartfire down used" << endl;
-    } //if below point is already used (do nothing)
-    else if (playerBoard[compPrevRow + 1][compPrevCol] != '~') {
-      cout << "smartfire down hit" << endl;
-      playerBoard[compPrevRow + 1][compPrevCol] = '!';
-      compSonar[compPrevRow + 1][compPrevCol] = 'X';
-      cout << "HIT! You've taken damage" << endl;
-      compPrevRow++;
-      return true;
-    } //if comp scored hit against user
-    else {
-      cout << "smartfire down miss" << endl;
-      //compSonar[compPrevRow + 1][compPrevCol] = 'O';
-      //cout << "MISS! You've evaded damage" << endl;
-    } //else (miss)
-  } //check down
+  if (compPrevRow == 0 && compPrevCol == 9) {
+    cout << "case 3" << endl;
+    if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
+      compFire(compPrevRow + 1, compPrevCol);
+      return;
+    } 
+    else if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
+      compFire(compPrevRow, compPrevCol - 1);
+      return;
+    }
+  } //check down, left
 
-  if ((compPrevRow - 1) >= 0) {
-    if (compSonar[compPrevRow - 1][compPrevCol] != '~') {
-      cout << "smartfire up used" << endl;
-    } //if above point is already used (do nothing)
-    else if (playerBoard[compPrevRow - 1][compPrevCol] != '~') {
-      cout << "smartfire up hit" << endl;
-      playerBoard[compPrevRow - 1][compPrevCol] = '!';
-      compSonar[compPrevRow - 1][compPrevCol] = 'X';
-      cout << "HIT! You've taken damage" << endl;
-      compPrevRow--;
-      return true;
-    } //if comp scored hit against user
+  if (0 < compPrevRow && compPrevRow <= 8 && compPrevCol == 0) {
+    cout << "case 4" << endl;
+    if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
+      compFire(compPrevRow + 1, compPrevCol);
+      return;
+    }
+    else if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
+      compFire(compPrevRow - 1, compPrevCol);
+      return;
+    }
+    else if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
+      compFire(compPrevRow, compPrevCol + 1);
+      return;
+    }
     else {
-      cout << "smartfire up miss" << endl;
-      //compSonar[compPrevRow - 1][compPrevCol] = 'O';
-      //cout << "MISS! You've evaded damage" << endl;
-    } //else (miss)
-  } //check up
-  compPrevRow = -1;
-  compPrevCol = -1;
-  return false;
+      compPrevRow = oriPrevRow;
+      compPrevCol = oriPrevCol;
+      compSmartFire();
+      return;
+    } //else reset prev coordinates and try again
+  } //check down, up, right
+
+  if (0 < compPrevRow && compPrevRow <= 8 && compPrevCol == 9) {
+    cout << "case 5" << endl;
+    if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
+      compFire(compPrevRow + 1, compPrevCol);
+      return;
+    }
+    else if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
+      compFire(compPrevRow - 1, compPrevCol);
+      return;
+    }
+    else if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
+      compFire(compPrevRow, compPrevCol - 1);
+      return;
+    }
+    else {
+      compPrevRow = oriPrevRow;
+      compPrevCol = oriPrevCol;
+      compSmartFire();
+      return;
+    } //else reset prev coordinates and try again
+  } //check down, up, left
+
+  if (compPrevRow == 9 && compPrevCol == 0) {
+    cout << "case 6" << endl;
+    if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
+      compFire(compPrevRow - 1, compPrevCol);
+      return;
+    }
+    else if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
+      compFire(compPrevRow, compPrevCol + 1);
+      return;
+    }
+    else {
+      compPrevRow = oriPrevRow;
+      compPrevCol = oriPrevCol;
+      compSmartFire();
+      return;
+    } //else reset prev coordintes and try again
+  } //check up, right
+
+  if (compPrevRow == 9 && 0 < compPrevCol && compPrevCol <= 8) {
+    cout << "case 7" << endl;
+    if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
+      compFire(compPrevRow, compPrevCol - 1);
+      return;
+    }
+    else if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
+      compFire(compPrevRow - 1, compPrevCol);
+      return;
+    }
+    else if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
+      compFire(compPrevRow, compPrevCol + 1);
+    }
+    else {
+      compPrevRow = oriPrevRow;
+      compPrevCol = oriPrevCol;
+      compSmartFire();
+      return;
+    } //else reset prev coordinates and try again
+  } //check left, up, right
+
+  if (0 < compPrevRow & compPrevRow <= 8 && 0 < compPrevCol && compPrevCol <= 8) {
+    cout << "general case" << endl;
+    if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
+      compFire(compPrevRow - 1, compPrevCol);
+      return;
+    }
+    else if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
+      compFire(compPrevRow + 1, compPrevCol);
+      return;
+    }
+    else if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
+      compFire(compPrevRow, compPrevCol - 1);
+      return;
+    }
+    else if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
+      compFire(compPrevRow, compPrevCol + 1);
+      return;
+    }
+    else {
+      compPrevRow = oriPrevRow;
+      compPrevCol = oriPrevCol;
+      compSmartFire();
+      return;
+    } //else reset prev coordinates and try again
+  } //general case (check all directions)
 } //compSmartFire
 
 
@@ -902,6 +986,7 @@ void checkAfterPlayer() {
 
   if (cCsunk && cDsunk && cBsunk && cSsunk && cPsunk)
     playerWon = true;
+  sleep(1.5);
 } //checkAfterPlayer
 
 void checkAfterComp() {
@@ -912,6 +997,8 @@ void checkAfterComp() {
       cout << "Your Carrier has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
+      oriPrevRow = -1;
+      oriPrevCol = -1;
     } //if player carrier now sunk
   } //if player carrier not yet reported as sunk
 
@@ -921,6 +1008,8 @@ void checkAfterComp() {
       cout << "Your Destroyer has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
+      oriPrevRow = -1;
+      oriPrevCol = -1;
     } //if player destroyer now sunk
   } //if player destroyer not yet reported as sunk
 
@@ -930,6 +1019,8 @@ void checkAfterComp() {
       cout << "Your Battleship has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
+      oriPrevRow = -1;
+      oriPrevCol = -1;
     } //if player battleship now sunk
   } //if player battleship not yet reported as sunk
 
@@ -939,6 +1030,8 @@ void checkAfterComp() {
       cout << "Your Submarine has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
+      oriPrevRow = -1;
+      oriPrevCol = -1;
     } //if player sub now sunk
   } //if player sub not yet reported as sunk
 
@@ -948,7 +1041,9 @@ void checkAfterComp() {
       cout << "Your Patrol Boat has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
+      oriPrevRow = -1;
+      oriPrevCol = -1;
     } //if player patrol now sunk
   } //if player patrol boat not yet reported as sunk
-  
+  sleep(1.5);  
 } //checkAfterComp
