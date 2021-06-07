@@ -810,7 +810,7 @@ void compSmartFire() {
   } //if no previous hit coordinates set (start of game or after sinking a ship)
   
   if (compPrevRow == 0 && compPrevCol == 0) {
-    cout << "case 1" << endl;
+    //cout << "case 1" << endl;
     if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
       compFire(compPrevRow, compPrevCol + 1);
       return;
@@ -828,7 +828,7 @@ void compSmartFire() {
   } //check right, down for empty space
 
   if (compPrevRow == 0 && 0 < compPrevCol && compPrevCol <= 8) {
-    cout << "case 2" << endl;
+    //cout << "case 2" << endl;
     if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
       compFire(compPrevRow, compPrevCol + 1);
       return;
@@ -850,7 +850,7 @@ void compSmartFire() {
   } //check right, down, left for empty space
 
   if (compPrevRow == 0 && compPrevCol == 9) {
-    cout << "case 3" << endl;
+    //cout << "case 3" << endl;
     if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
@@ -862,7 +862,7 @@ void compSmartFire() {
   } //check down, left for empty space
 
   if (0 < compPrevRow && compPrevRow <= 8 && compPrevCol == 0) {
-    cout << "case 4" << endl;
+    //cout << "case 4" << endl;
     if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
@@ -884,7 +884,7 @@ void compSmartFire() {
   } //check down, up, right for empty space
 
   if (0 < compPrevRow && compPrevRow <= 8 && compPrevCol == 9) {
-    cout << "case 5" << endl;
+    //cout << "case 5" << endl;
     if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
@@ -906,7 +906,7 @@ void compSmartFire() {
   } //check down, up, left for empty space
 
   if (compPrevRow == 9 && compPrevCol == 0) {
-    cout << "case 6" << endl;
+    //cout << "case 6" << endl;
     if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
       compFire(compPrevRow - 1, compPrevCol);
       return;
@@ -924,7 +924,7 @@ void compSmartFire() {
   } //check up, right for empty space
 
   if (compPrevRow == 9 && 0 < compPrevCol && compPrevCol <= 8) {
-    cout << "case 7" << endl;
+    //cout << "case 7" << endl;
     if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
       compFire(compPrevRow, compPrevCol - 1);
       return;
@@ -945,7 +945,7 @@ void compSmartFire() {
   } //check left, up, right for empty space
 
   if (0 < compPrevRow & compPrevRow <= 8 && 0 < compPrevCol && compPrevCol <= 8) {
-    cout << "general case" << endl;
+    //cout << "general case" << endl;
     if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
       compFire(compPrevRow - 1, compPrevCol);
       return;
