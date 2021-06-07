@@ -32,14 +32,16 @@ bool devMode = false; //set to true to print comp's sonar and fleet for debuggin
 char playerSonar[10][10]; //represents the player's sonar
 char playerBoard[10][10]; //represents the player's fleet
 
-char compSonar[10][10];
-char compBoard[10][10];
+char compSonar[10][10]; //represents the computer's sonar
+char compBoard[10][10]; //represents the computer's fleet
 
 int compPrevRow = -1;
 int compPrevCol = -1;
 
 int oriPrevRow = -1;
 int oriPrevCol = -1;
+
+/* Function declarations */
 
 void printWelcome();
 void askForDev();
@@ -115,6 +117,9 @@ int main() {
 /*
   This function is called once per execution and greets the player with
   explanatory messages meant to introduce the game.
+
+  Also included in the output statements are color codes which will only render
+  in unix-based environments.
 */
 
 void printWelcome() {
@@ -731,50 +736,75 @@ void playerFire(int row, int col) {
 } //playerFire
 
 /*
-  This function allows the computer to "fire" on the player's fleet. If the compPrevRow and compPrevCol
-  variables are currently unset (value of -1), then this function calls the compSmartFire function.
-  Should the compSmartFire function fail to yield a hit, then this function will continue with
-  "normal" firing procedures. It will generate random row and col coordinates until an unused space is found.
-  It will also mark the results of the firing on the computer's sonar (in the interest of devMode), as well as
-  alert the player to whether the shot was hit or miss.
+  This function takes in firing coordinates and 'fires' on the player's fleet.
+  It will output appropriate messages to the screen based on whether the computer
+  scored a hit or a miss. It will add a '!' to the player's fleet in the event of a hit.
+  Firing coordinates are determined by the compSmartFire funciton, which calls this function.
+  
+  This function also has a role to play in the AI's operation, since it will set
+  the oriPrevRow and oriPrevCol variables if they are currently unset. It will also
+  update compPrevRow and compPrevCol if the computer scores a hit on the player.
+
+  This function also updates the computer's sonar with an X or O, which can be seen
+  if devMode is set to true.
 */
 
 void compFire(int row, int col) {
   cout << "Computer is firing" << endl;
   sleep(2);
+  
   if (playerBoard[row][col] != '~') {
     playerBoard[row][col] = '!';
     cout << "HIT! You've sustained damage at " << row << " " << col << endl;
     compSonar[row][col] = 'X';
+    
     if (oriPrevRow == -1 && oriPrevCol == -1) {
       oriPrevRow = row;
       oriPrevCol = col;
     } //if original coordinates not yet set
+    
     compPrevRow = row;
     compPrevCol = col;
   } //if player takes a hit
+  
   else {
     cout << "MISS! You've evaded damage at " << row << " " << col << endl;
     compSonar[row][col] = 'O';
   } //else (computer missed)
+  
   sleep(2);
 } //compFire
 
 /*
-  This function allows the computer to make 'smarter' firing decisions
-  so long as the previous turn yielded a hit.
+  This function houses much of the AI capabilities in the game and allows
+  the computer to make 'smarter' firing decisions. To summarize, if the computer
+  has not yet scored any hits, then it will fire on random unused coordinates
+  on each turn until a hit is made.
+
+  It will then log the hit's coordinates as oriPrevRow, oriPrevCol, compPrevRow, and compPrevCol
+  for the row and column coordinates. On its next turn, the computer will fire on an unused coordinate
+  that is adjacent to compPrevRow, compPrevCol. Should this yield a hit, then compPrevRow and compPrevCol
+  are updated to the coordinates of the hit.
+
+  If there are no unused coordinates around the computer's most recent hit, then compPrevRow and compPrevCol
+  are updated to the values of oriPrevRow and oriPrevCol so that the computer can reach the rest of the ship
+  being attacked. The function actually calls the compFire function to carry out the firing and board-marking
+  operations. This function contains exhaustive cases for different coordinate scenarios since a hit in certain
+  regions of the board may necessitate a unique course of action.
 */
 
 void compSmartFire() {
   if (compPrevRow == -1 && compPrevCol == -1) {
     int fireRow = rand() % 10;
     int fireCol = rand() % 10;
+    
     while (compSonar[fireRow][fireCol] != '~') {
       fireRow = rand() % 10;
       if (compSonar[fireRow][fireCol] == '~')
 	break;
       else fireCol = rand() % 10;
     } //while validating the coordinates as unused
+    
     compFire(fireRow, fireCol);
     return;
   } //if no previous hit coordinates set (start of game or after sinking a ship)
@@ -784,163 +814,169 @@ void compSmartFire() {
     if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
       compFire(compPrevRow, compPrevCol + 1);
       return;
-    }
+    } //right
     else if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
-    }
+    } //down
     else {
       compPrevRow = oriPrevRow;
       compPrevCol = oriPrevCol;
       compSmartFire();
       return;
     } //else reset prev coordinates and try again
-  } //check right, down
+  } //check right, down for empty space
 
   if (compPrevRow == 0 && 0 < compPrevCol && compPrevCol <= 8) {
     cout << "case 2" << endl;
     if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
       compFire(compPrevRow, compPrevCol + 1);
       return;
-    }
+    } //right
     else if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
-    } 
+    } //down
     else if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
       compFire(compPrevRow, compPrevCol - 1);
       return;
-    }
+    } //left
     else {
       compPrevRow = oriPrevRow;
       compPrevCol = oriPrevCol;
       compSmartFire();
       return;
     } //else reset prev cooridnates and try again
-  } //check right, down, left
+  } //check right, down, left for empty space
 
   if (compPrevRow == 0 && compPrevCol == 9) {
     cout << "case 3" << endl;
     if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
-    } 
+    } //down
     else if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
       compFire(compPrevRow, compPrevCol - 1);
       return;
-    }
-  } //check down, left
+    } //left
+  } //check down, left for empty space
 
   if (0 < compPrevRow && compPrevRow <= 8 && compPrevCol == 0) {
     cout << "case 4" << endl;
     if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
-    }
+    } //down
     else if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
       compFire(compPrevRow - 1, compPrevCol);
       return;
-    }
+    } //up
     else if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
       compFire(compPrevRow, compPrevCol + 1);
       return;
-    }
+    } //right
     else {
       compPrevRow = oriPrevRow;
       compPrevCol = oriPrevCol;
       compSmartFire();
       return;
     } //else reset prev coordinates and try again
-  } //check down, up, right
+  } //check down, up, right for empty space
 
   if (0 < compPrevRow && compPrevRow <= 8 && compPrevCol == 9) {
     cout << "case 5" << endl;
     if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
-    }
+    } //down
     else if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
       compFire(compPrevRow - 1, compPrevCol);
       return;
-    }
+    } //up
     else if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
       compFire(compPrevRow, compPrevCol - 1);
       return;
-    }
+    } //left
     else {
       compPrevRow = oriPrevRow;
       compPrevCol = oriPrevCol;
       compSmartFire();
       return;
     } //else reset prev coordinates and try again
-  } //check down, up, left
+  } //check down, up, left for empty space
 
   if (compPrevRow == 9 && compPrevCol == 0) {
     cout << "case 6" << endl;
     if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
       compFire(compPrevRow - 1, compPrevCol);
       return;
-    }
+    } //up
     else if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
       compFire(compPrevRow, compPrevCol + 1);
       return;
-    }
+    } //right
     else {
       compPrevRow = oriPrevRow;
       compPrevCol = oriPrevCol;
       compSmartFire();
       return;
     } //else reset prev coordintes and try again
-  } //check up, right
+  } //check up, right for empty space
 
   if (compPrevRow == 9 && 0 < compPrevCol && compPrevCol <= 8) {
     cout << "case 7" << endl;
     if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
       compFire(compPrevRow, compPrevCol - 1);
       return;
-    }
+    } //left
     else if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
       compFire(compPrevRow - 1, compPrevCol);
       return;
-    }
+    } //up
     else if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
       compFire(compPrevRow, compPrevCol + 1);
-    }
+    } //right
     else {
       compPrevRow = oriPrevRow;
       compPrevCol = oriPrevCol;
       compSmartFire();
       return;
     } //else reset prev coordinates and try again
-  } //check left, up, right
+  } //check left, up, right for empty space
 
   if (0 < compPrevRow & compPrevRow <= 8 && 0 < compPrevCol && compPrevCol <= 8) {
     cout << "general case" << endl;
     if (compSonar[compPrevRow - 1][compPrevCol] == '~') {
       compFire(compPrevRow - 1, compPrevCol);
       return;
-    }
+    } //up
     else if (compSonar[compPrevRow + 1][compPrevCol] == '~') {
       compFire(compPrevRow + 1, compPrevCol);
       return;
-    }
+    } //down
     else if (compSonar[compPrevRow][compPrevCol - 1] == '~') {
       compFire(compPrevRow, compPrevCol - 1);
       return;
-    }
+    } //left
     else if (compSonar[compPrevRow][compPrevCol + 1] == '~') {
       compFire(compPrevRow, compPrevCol + 1);
       return;
-    }
+    } //right
     else {
       compPrevRow = oriPrevRow;
       compPrevCol = oriPrevCol;
       compSmartFire();
       return;
     } //else reset prev coordinates and try again
-  } //general case (check all directions)
+  } //general case (check all directions for empty space)
 } //compSmartFire
 
+/*
+  This function checks the parameter array for a certain char (code).
+  In terms of gameplay, it checks the parameter game board for a certain ship.
+  It will return true if said ship was not found (i.e. is sunk) and false if
+  it was found.
+ */
 
 bool checkVessel(char arr[10][10], char code) {
   bool vesselGone = true;
@@ -952,6 +988,14 @@ bool checkVessel(char arr[10][10], char code) {
   } //outer for
   return vesselGone;
 } //checkVessel
+
+/*
+  This function is called in main after the player has completed a turn and
+  checks to see if said turn resulted in the sinking of any of the computer's ships.
+  It does this by calling the checkVessel function with appropriate parameters.
+  Boolean values returned by said function calls are used in main to determine if
+  the player has won.
+ */
 
 void checkAfterPlayer() {
   if (!cCsunk) {
@@ -988,6 +1032,16 @@ void checkAfterPlayer() {
     playerWon = true;
   sleep(1.5);
 } //checkAfterPlayer
+
+/*
+  This function is called in main after the computer has finished
+  a turn. It checks to see if the player's ships are sunk yet by calling
+  the checkVessel function with appropriate parameters. If a player's ship
+  was sunk on the previous turn, then the computer's prev coordinates and 
+  original prev coordinates are reset to -1 to facilitate a new iteration of
+  the smartFire operation. Boolean values returned by the checkVessel function
+  are used in main to determine if the computer has just won.
+ */
 
 void checkAfterComp() {
 
