@@ -1001,31 +1001,31 @@ void checkAfterPlayer() {
   if (!cCsunk) {
     cCsunk = checkVessel(compBoard, 'C');
     if (cCsunk)
-      cout << "You've sunk the enemy Carrier!" << endl;
+      cout << "You've sunk the enemy \033[4;31mCarrier!\033[0m" << endl;
   } //if comp carrier not yet reported as sunk
 
   if (!cDsunk) {
     cDsunk = checkVessel(compBoard, 'D');
     if (cDsunk)
-      cout << "You've sunk the enemy Destroyer!" << endl;
+      cout << "You've sunk the enemy \033[4;34mDestroyer!\033[0m" << endl;
   } //if comp destroyer not yet reported as sunk
 
   if (!cBsunk) {
     cBsunk = checkVessel(compBoard, 'B');
     if (cBsunk)
-      cout << "You've sunk the enemy Battleship!" << endl;
+      cout << "You've sunk the enemy \033[4;32mBattleship!\033[0m" << endl;
   } //if comp battleship not yet reported as sunk
 
   if (!cSsunk) {
     cSsunk = checkVessel(compBoard, 'S');
     if (cSsunk)
-      cout << "You've sunk the enemy Submarine!" << endl;
+      cout << "You've sunk the enemy \033[4;33mSubmarine!\033[0m" << endl;
   } //if comp submarine not yet reported as sunk
 
   if (!cPsunk) {
     cPsunk = checkVessel(compBoard, 'P');
     if (cPsunk)
-      cout << "You've sunk the enemy Patrol Boat!" << endl;
+      cout << "You've sunk the enemy \033[4;36mPatrol Boat!\033[0m" << endl;
   } //if comp patrol boat not yet reported as sunk
 
   if (cCsunk && cDsunk && cBsunk && cSsunk && cPsunk)
@@ -1048,7 +1048,7 @@ void checkAfterComp() {
   if (!pCsunk) {
     pCsunk = checkVessel(playerBoard, 'C');
     if (pCsunk) {
-      cout << "Your Carrier has been sunk!" << endl;
+      cout << "Your \033[4;31mCarrier\033[0m has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
       oriPrevRow = -1;
@@ -1059,7 +1059,7 @@ void checkAfterComp() {
   if (!pDsunk) {
     pDsunk = checkVessel(playerBoard, 'D');
     if (pDsunk) {
-      cout << "Your Destroyer has been sunk!" << endl;
+      cout << "Your \033[4;34mDestroyer\033[0m has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
       oriPrevRow = -1;
@@ -1070,7 +1070,7 @@ void checkAfterComp() {
   if (!pBsunk) {
     pBsunk = checkVessel(playerBoard, 'B');
     if (pBsunk) {
-      cout << "Your Battleship has been sunk!" << endl;
+      cout << "Your \033[4;32mBattleship\033[0m has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
       oriPrevRow = -1;
@@ -1081,7 +1081,7 @@ void checkAfterComp() {
   if (!pSsunk) {
     pSsunk = checkVessel(playerBoard, 'S');
     if (pSsunk) {
-      cout << "Your Submarine has been sunk!" << endl;
+      cout << "Your \033[4;33mSubmarine\033[0m has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
       oriPrevRow = -1;
@@ -1092,7 +1092,7 @@ void checkAfterComp() {
   if (!pPsunk) {
     pPsunk = checkVessel(playerBoard, 'P');
     if (pPsunk) {
-      cout << "Your Patrol Boat has been sunk!" << endl;
+      cout << "Your \033[4;36mPatrol Boat\033[0m has been sunk!" << endl;
       compPrevRow = -1;
       compPrevCol = -1;
       oriPrevRow = -1;
