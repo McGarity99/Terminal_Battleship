@@ -9,3 +9,9 @@ NOTE:
 	Basic AI is implemented to represent a human opponent (game is PvE).
 	
 	Contains several ANSI escape codes for colored terminal output.
+
+	Use Makefile to easily compile and execute the game:
+
+	    make Game to compile source code
+
+	    make Play to start the game
