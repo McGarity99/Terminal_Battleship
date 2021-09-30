@@ -67,6 +67,8 @@ int main() {
   srand(time(0));
   initialize();
   printWelcome();
+  cout << "Press [Enter] to continue..." << endl;
+  sleep(1.5);
   setPlayerShips();
   setCompShips();
   
