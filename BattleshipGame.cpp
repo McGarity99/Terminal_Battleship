@@ -4,12 +4,17 @@
 #include <time.h>
 #include <chrono>
 #include <thread>
+#include <tuple>
+#include <vector>
+#include <windows.h>
 #include <unistd.h>
 
 using std::cout;
 using std::cin;
 using std::endl;
 using std::string;
+using std::tuple;
+using std::vector;
 
 
 bool pCsunk = false; //player carrier sunk
@@ -41,6 +46,8 @@ int compPrevCol = -1;
 int oriPrevRow = -1;
 int oriPrevCol = -1;
 
+vector<tuple<int, int, char>> compLoggedCoordinates; //let the comp "remember" hit coordinates
+
 /* Function declarations */
 
 void printWelcome();
@@ -65,6 +72,11 @@ void compSmartFire();
 bool checkVessel(char arr[10][10], char code);
 void checkAfterPlayer();
 void checkAfterComp();
+void pushCoordinates(int row, int col, char mark);
+void printLoggedCoordinates();
+void scrubLoggedCoordinates(char mark);
+int pickAnIndex();
+void assignNewCoordinates();
 
 /* Functions defined below this line -------------------------------------- */
 
@@ -124,7 +136,7 @@ int main() {
 
 void printWelcome() {
   cout << "Welcome to Command-Line Battleship!" << endl;
-  cout << "Play against a random-select AI for supremacy on the high seas." << endl;
+  cout << "Play against an advanced AI for supremacy on the high seas." << endl;
   cout << "Ships are placed randomly across the board." << endl;
   cout << "Ship Codes: " << endl;
   cout << "\033[4;31mC = Carrier\033[0m" << endl;    
@@ -735,11 +747,22 @@ void playerFire(int row, int col) {
 
 } //playerFire
 
+void pushCoordinates(int row, int col, char mark) {
+  compLoggedCoordinates.push_back(std::make_tuple(row, col, mark));
+}
+
+void printLoggedCoordinates() {
+  for (auto tuple : compLoggedCoordinates) {
+    cout << "(" << std::get<0>(tuple) << ", " << std::get<1>(tuple) << ", " << std::get<2>(tuple) << ") ";
+  }
+  cout << endl;
+}
+
 /*
   This function takes in firing coordinates and 'fires' on the player's fleet.
   It will output appropriate messages to the screen based on whether the computer
   scored a hit or a miss. It will add a '!' to the player's fleet in the event of a hit.
-  Firing coordinates are determined by the compSmartFire funciton, which calls this function.
+  Firing coordinates are determined by the compSmartFire function, which calls this function.
   
   This function also has a role to play in the AI's operation, since it will set
   the oriPrevRow and oriPrevCol variables if they are currently unset. It will also
@@ -753,7 +776,10 @@ void compFire(int row, int col) {
   cout << "Computer is firing" << endl;
   sleep(2);
   
-  if (playerBoard[row][col] != '~') {
+  char target = playerBoard[row][col];
+  if (target != '~') {
+    pushCoordinates(row, col, target);
+    printLoggedCoordinates();
     playerBoard[row][col] = '!';
     cout << "HIT! You've sustained damage at " << row << " " << col << endl;
     compSonar[row][col] = 'X';
@@ -972,6 +998,41 @@ void compSmartFire() {
 } //compSmartFire
 
 /*
+  When the computer sinks a player's ship, we want to remove the sunken ship's coordinates
+  from the comp's logged coordinates vector. This ensures that any coordinates left over in the vector
+  can quickly be used after sinking the first ship, making the ai "smarter" by remembering it has hit(s)
+  on other ship(s).
+
+  We want to remove <limit> many adjacent coordinates that DO NOT break direction.
+*/
+void scrubLoggedCoordinates(char mark) {
+  for (auto it = compLoggedCoordinates.begin(); it != compLoggedCoordinates.end();) {
+    if (std::get<2>(*it) == mark) {
+      it = compLoggedCoordinates.erase(it);
+    } else {
+      it++;
+    }
+  }
+  cout << "scrubbed coordinates: " << endl;
+  printLoggedCoordinates();
+}
+
+/*
+std::vector<std::tuple<int, int, int>> vec = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+    int mark = 3;
+    for (auto it = vec.begin(); it != vec.end();) {
+        if (std::get<2>(*it) == mark) {
+            it = vec.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    for (auto i : vec) {
+        std::cout << std::get<0>(i) << " " << std::get<1>(i) << " " << std::get<2>(i) << std::endl;
+    }
+*/
+
+/*
   This function checks the parameter array for a certain char (code).
   In terms of gameplay, it checks the parameter game board for a certain ship.
   It will return true if said ship was not found (i.e. is sunk) and false if
@@ -1034,6 +1095,36 @@ void checkAfterPlayer() {
 } //checkAfterPlayer
 
 /*
+  To enhance the AI, when it falls back on its vector of logged coordinates, we want to 
+  allow it to select its new coordinates from a random tuple in the vector, rather than always
+  falling back on a set index.
+*/
+int pickAnIndex() {
+  int length = compLoggedCoordinates.size();
+  if (length == 0) {
+    return -1;
+  }
+  int newIndex = rand() % length;
+  return newIndex;
+}
+
+/*
+  This function will pick a set of coordinates from the comp's logged coordinates vector and then
+  assign those new coordinates to the comp's prev row and prev col so the comp can resume play
+  from a ship that it has already hit, but has not yet sunk.
+*/
+void assignNewCoordinates() {
+  int newIndex = pickAnIndex();
+  if (newIndex != -1) {
+    compPrevRow = std::get<0>(compLoggedCoordinates[newIndex]);
+    compPrevCol = std::get<1>(compLoggedCoordinates[newIndex]);
+  } else {
+    compPrevRow = -1;
+    compPrevCol = -1;
+  }
+}
+
+/*
   This function is called in main after the computer has finished
   a turn. It checks to see if the player's ships are sunk yet by calling
   the checkVessel function with appropriate parameters. If a player's ship
@@ -1049,8 +1140,8 @@ void checkAfterComp() {
     pCsunk = checkVessel(playerBoard, 'C');
     if (pCsunk) {
       cout << "Your \033[4;31mCarrier\033[0m has been sunk!" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
+      scrubLoggedCoordinates('C');
+      assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
     } //if player carrier now sunk
@@ -1060,8 +1151,8 @@ void checkAfterComp() {
     pDsunk = checkVessel(playerBoard, 'D');
     if (pDsunk) {
       cout << "Your \033[4;34mDestroyer\033[0m has been sunk!" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
+      scrubLoggedCoordinates('D');
+      assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
     } //if player destroyer now sunk
@@ -1071,8 +1162,8 @@ void checkAfterComp() {
     pBsunk = checkVessel(playerBoard, 'B');
     if (pBsunk) {
       cout << "Your \033[4;32mBattleship\033[0m has been sunk!" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
+      scrubLoggedCoordinates('B');
+      assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
     } //if player battleship now sunk
@@ -1082,8 +1173,8 @@ void checkAfterComp() {
     pSsunk = checkVessel(playerBoard, 'S');
     if (pSsunk) {
       cout << "Your \033[4;33mSubmarine\033[0m has been sunk!" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
+      scrubLoggedCoordinates('S');
+      assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
     } //if player sub now sunk
@@ -1093,8 +1184,8 @@ void checkAfterComp() {
     pPsunk = checkVessel(playerBoard, 'P');
     if (pPsunk) {
       cout << "Your \033[4;36mPatrol Boat\033[0m has been sunk!" << endl;
-      compPrevRow = -1;
-      compPrevCol = -1;
+      scrubLoggedCoordinates('P');
+      assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
     } //if player patrol now sunk
