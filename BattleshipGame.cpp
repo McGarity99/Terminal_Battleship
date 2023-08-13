@@ -747,10 +747,17 @@ void playerFire(int row, int col) {
 
 } //playerFire
 
+/*
+  Add a new tuple<int, int, char> to the comp's logged coordinates vector
+  to maintain a memory of this hit.
+*/
 void pushCoordinates(int row, int col, char mark) {
   compLoggedCoordinates.push_back(std::make_tuple(row, col, mark));
 }
 
+/*
+  Display the comp's logged coordinates in a graceful manner.
+*/
 void printLoggedCoordinates() {
   for (auto tuple : compLoggedCoordinates) {
     cout << "(" << std::get<0>(tuple) << ", " << std::get<1>(tuple) << ", " << std::get<2>(tuple) << ") ";
@@ -781,7 +788,7 @@ void compFire(int row, int col) {
     pushCoordinates(row, col, target);
     printLoggedCoordinates();
     playerBoard[row][col] = '!';
-    cout << "HIT! You've sustained damage at " << row << " " << col << endl;
+    cout << "HIT! You've sustained damage at (" << row << ", " << col << ")" << endl;
     compSonar[row][col] = 'X';
     
     if (oriPrevRow == -1 && oriPrevCol == -1) {
@@ -794,7 +801,7 @@ void compFire(int row, int col) {
   } //if player takes a hit
   
   else {
-    cout << "MISS! You've evaded damage at " << row << " " << col << endl;
+    cout << "MISS! You've evaded damage at (" << row << ", " << col << ")" << endl;
     compSonar[row][col] = 'O';
   } //else (computer missed)
   
@@ -1002,8 +1009,6 @@ void compSmartFire() {
   from the comp's logged coordinates vector. This ensures that any coordinates left over in the vector
   can quickly be used after sinking the first ship, making the ai "smarter" by remembering it has hit(s)
   on other ship(s).
-
-  We want to remove <limit> many adjacent coordinates that DO NOT break direction.
 */
 void scrubLoggedCoordinates(char mark) {
   for (auto it = compLoggedCoordinates.begin(); it != compLoggedCoordinates.end();) {
@@ -1013,24 +1018,11 @@ void scrubLoggedCoordinates(char mark) {
       it++;
     }
   }
+  if (devMode) {
   cout << "scrubbed coordinates: " << endl;
   printLoggedCoordinates();
+  }
 }
-
-/*
-std::vector<std::tuple<int, int, int>> vec = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
-    int mark = 3;
-    for (auto it = vec.begin(); it != vec.end();) {
-        if (std::get<2>(*it) == mark) {
-            it = vec.erase(it);
-        } else {
-            ++it;
-        }
-    }
-    for (auto i : vec) {
-        std::cout << std::get<0>(i) << " " << std::get<1>(i) << " " << std::get<2>(i) << std::endl;
-    }
-*/
 
 /*
   This function checks the parameter array for a certain char (code).
