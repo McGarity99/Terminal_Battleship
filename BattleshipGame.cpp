@@ -15,6 +15,7 @@ using std::endl;
 using std::string;
 using std::tuple;
 using std::vector;
+using std::array;
 
 
 bool pCsunk = false; //player carrier sunk
@@ -33,12 +34,15 @@ bool playerWon = false;
 bool compWon = false;
 
 bool devMode = false; //set to true to print comp's sonar and fleet for debugging purposes
+bool ansi = false; // does the terminal support ANSI escape codes?
 
 char playerSonar[10][10]; //represents the player's sonar
 char playerBoard[10][10]; //represents the player's fleet
+int playerMineCount = 1; // mines the player can use to hit multiple spaces at once (consumes a turn)
 
 char compSonar[10][10]; //represents the computer's sonar
 char compBoard[10][10]; //represents the computer's fleet
+int compMineCount = 1; // mines the comp can use to hit multiple spaces at once (consumes a turn)
 
 int compPrevRow = -1;
 int compPrevCol = -1;
@@ -52,7 +56,7 @@ vector<tuple<int, int, char>> compLoggedCoordinates; //let the comp "remember" h
 
 void printWelcome();
 void askForDev();
-void printBoard();
+int askForMines();
 void initialize();
 void printGame(char arr[10][10], bool isPlayerBoard);
 void printComp(char arr[10][10], bool isCompBoard);
@@ -64,6 +68,10 @@ void setBattleship(char arr[10][10]);
 void setDestroyer(char arr[10][10]);
 void setSubmarine(char arr[10][10]);
 void setPatrol(char arr[10][10]);
+void setMines(char arr[10][10], int);
+
+bool supportsANSI();
+string formatCharacterANSI(char);
 
 void prompt();
 void playerFire(int row, int col);
@@ -81,6 +89,9 @@ void assignNewCoordinates();
 /* Functions defined below this line -------------------------------------- */
 
 int main() {
+  ansi = supportsANSI(); // Does the terminal support ANSI escape sequences?
+
+  // Initialize and place ships
   int ref = 0;
   srand(time(0));
   initialize();
@@ -88,6 +99,15 @@ int main() {
   askForDev();
   setPlayerShips();
   setCompShips();
+  
+  // Place the mines
+  int mineCount = askForMines();
+  cout << "Placing " << mineCount << " mines around player fleet..." << endl;
+  sleep(1.5);
+  setMines(playerBoard, mineCount);
+  cout << "Placing " << mineCount << " mines around CPU fleet..." << endl;
+  sleep(1.5);
+  setMines(compBoard, mineCount);
   
   while (!playerWon && !compWon) {
     printGame(playerSonar, false);
@@ -127,6 +147,30 @@ int main() {
 } //main function
 
 /*
+  Determine whether the terminal supports ANSI escape codes for rendering
+  color-formatted characters.
+*/
+bool supportsANSI() {
+  #ifdef _WIN32
+    // Windows check
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+
+    if (!GetConsoleMode(hOut, &mode)) {
+      return false; // Not a console
+    }
+
+    // Check if VTP is enabled
+    return (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
+  #else
+    // Unix-like systems: check TERM or COLORTERM
+    const char* term = std::getenv("TERM");
+    const char* colorterm = std::getenv("COLORTERM");
+    return term || colorterm;
+  #endif
+}
+
+/*
   This function is called once per execution and greets the player with
   explanatory messages meant to introduce the game.
 
@@ -139,11 +183,23 @@ void printWelcome() {
   cout << "Play against an advanced AI for supremacy on the high seas." << endl;
   cout << "Ships are placed randomly across the board." << endl;
   cout << "Ship Codes: " << endl;
-  cout << "\033[4;31mC = Carrier\033[0m" << endl;    
-  cout << "\033[4;32mB = Battleship\033[0m" << endl;
-  cout << "\033[4;34mD = Destroyer\033[0m" << endl;
-  cout << "\033[4;33mS = Submarine\033[0m" << endl;
-  cout << "\033[4;36mP = Patrol Boat\033[0m\n";
+  cout << "==================" << endl;
+  if (ansi) {
+    cout << "\033[31mC = Carrier\033[0m" << endl;    
+    cout << "\033[32mB = Battleship\033[0m" << endl;
+    cout << "\033[34mD = Destroyer\033[0m" << endl;
+    cout << "\033[33mS = Submarine\033[0m" << endl;
+    cout << "\033[36mP = Patrol Boat\033[0m" << endl;
+    cout << "\033[90m@ = Mine\033[0m\n";
+  } else {
+    cout << "C = Carrier" << endl;    
+    cout << "B = Battleship" << endl;
+    cout << "D = Destroyer" << endl;
+    cout << "S = Submarine" << endl;
+    cout << "P = Patrol Boat" << endl;
+    cout << "@ = Mine" << endl;
+  }
+  cout << "==================" << endl;
 } //printWelcome
 
 /*
@@ -168,6 +224,27 @@ void askForDev() {
 } //askForDev
 
 /*
+  This function prompts the player for how many mines to lay on the board.
+  Valid mine counts range from [0,5] and affect both the player's fleet and the CPU's fleet.
+*/
+int askForMines() {
+  string response;
+  int count;
+  cout << "If hit, mines can blast multiple adjacent spaces." << endl;
+  cout << "How many mines would you like to place? [MAX: 5]" << endl;
+  cout << "Count: ";
+  cin >> response;
+  count = std::atoi(response.c_str()); // non-numeric interpreted as 0
+  if (count > 5) {
+    count = 5;
+  } else if (count < 0) {
+    count = 0;
+  }
+
+  return count;
+}
+
+/*
   This function initializes the player's sonar and fleet board
   as empty (represented as ~ spaces). It does the same for the 
   computer's sonar and fleet boards.
@@ -184,6 +261,24 @@ void initialize() {
     } //inner for-loop
   } //outter for-loop
 } //initialize
+
+/*
+  Take a character from a space on the board, and format it to
+  the appropriate ANSI escape sequence (if supported by the terminal).
+*/
+string formatCharacterANSI(char c) {
+  string formattedStr;
+  switch(c) {
+    case 'C': formattedStr = "\033[31mC\033[0m"; break;
+    case 'B': formattedStr = "\033[32mB\033[0m"; break;
+    case 'D': formattedStr = "\033[34mD\033[0m"; break;
+    case 'S': formattedStr = "\033[33mS\033[0m"; break;
+    case 'P': formattedStr = "\033[36mP\033[0m"; break;
+    case '@': formattedStr = "\033[90m@\033[0m"; break;
+    case '~': formattedStr = "~"; break;
+  }
+  return formattedStr;
+}
 
 /*
   This function prints the player's game boards to standard output.
@@ -215,10 +310,12 @@ void printGame(char arr[10][10], bool isPlayerBoard) {
   for (int i = 0; i < 10; i++) {
     cout << currentRow << " | ";
     for (int j = 0; j < 10; j++) {
-      cout << arr[i][j] << " | ";
+      //cout << arr[i][j] << "   ";
+      ansi ? cout << formatCharacterANSI(arr[i][j]) : cout << arr[i][j];
+      cout << "   ";
     } //inner for traversing columns
     currentRow++;
-    cout << endl;
+    cout << "\n" << endl;
   } //outter for traversing rows (block prints vertical separators)
   for (int k = 0; k < 43; k++) {
     cout << "-";
@@ -293,15 +390,13 @@ bool occupiedSpace(int startRow, int startCol, int endRow, int endCol, bool isVe
         return true;
       } //occupied space found
     }
-  } //check for available vertical placement
-
-  if (!isVertical) {
+  } else {
     for (int j = startCol; j <= endCol; j++) {
       if (arr[endRow][j] != '~') {
         return true;
       } //occupied space found
     }
-  } //check for available horizontal placement
+  }
   return false;
 } //occupiedSpace
 
@@ -690,9 +785,11 @@ void prompt() {
   cout << endl;
   cout << "Enter your firing coordinates." << endl;
   cout << "NOTE: Non-numeric characters interpreted as 0" << endl;
+
   while (!rowGood) {
     cout << "Row: ";
     cin >> rowStr;
+    //cin.clear();
     rowCoor = std::atoi(rowStr.c_str());
     if (rowCoor >= 0 && rowCoor <= 9) {
       rowGood = true;
@@ -704,6 +801,7 @@ void prompt() {
   while (!colGood) {
     cout << "Column: ";
     cin >> colStr;
+    //cin.clear();
     colCoor = std::atoi(colStr.c_str());
     if (colCoor >= 0 && colCoor <= 9) {
       colGood = true;
@@ -718,6 +816,8 @@ void prompt() {
   This function takes in the player's row and column firing coordinates and "fires"
   on the computer's fleet. The results of the firing are reported to the player's sonar,
   be it a hit or a miss.
+
+  When detonating a mine, explosion covers coordinates as well as x+1, x-1, y+1, y-1, for 5 spaces total.
 */
 
 void playerFire(int row, int col) {
@@ -732,11 +832,35 @@ void playerFire(int row, int col) {
     return;
   } //if user enters coordinates already used
 
-  if (compBoard[row][col] != '~') {
+  if (compBoard[row][col] != '~' && compBoard[row][col] != '@') { // if player scores a hit against the computer
     compBoard[row][col] = '!';
     playerSonar[row][col] = 'X';
     cout << "HIT! Enemy Sustained Damage" << endl;
-  } //if user scores a hit against the computer
+  } else if (compBoard[row][col] == '@') { // if player hits a mine in the CPU fleet
+    array<tuple<int, int>, 5> blastCoordinates = {
+      std::make_tuple(row, col),
+      std::make_tuple(row + 1, col),
+      std::make_tuple(row - 1, col),
+      std::make_tuple(row, col + 1),
+      std::make_tuple(row, col - 1)
+    };
+    cout << "You struck a mine!" << endl;
+    sleep(1.5);
+    for (int i = 0; i < 5; i++) {
+      int new_col = std::get<1>(blastCoordinates[i]);
+      int new_row = std::get<0>(blastCoordinates[i]);
+  
+      if (new_col >= 0 && new_col <= 9 && new_row >= 0 && new_row <= 9) {
+        if (compBoard[new_row][new_col] != '~') {
+          compBoard[new_row][new_col] = '!';
+          playerSonar[new_row][new_col] = 'X';
+          cout << "HIT! Enemy Sustained Damage at (" << new_row << ", " << new_col << ")" << endl;
+        } else {
+          playerSonar[new_row][new_col] = 'O';
+        }
+      }
+    }
+  }
 
   else {
     playerSonar[row][col] = 'O';
@@ -784,13 +908,12 @@ void compFire(int row, int col) {
   sleep(2);
   
   char target = playerBoard[row][col];
-  if (target != '~') {
+  if (target != '~' && target != '!') {
     pushCoordinates(row, col, target);
-    printLoggedCoordinates();
+    //printLoggedCoordinates();
     playerBoard[row][col] = '!';
     cout << "HIT! You've sustained damage at (" << row << ", " << col << ")" << endl;
     compSonar[row][col] = 'X';
-    
     if (oriPrevRow == -1 && oriPrevCol == -1) {
       oriPrevRow = row;
       oriPrevCol = col;
@@ -1184,3 +1307,17 @@ void checkAfterComp() {
   } //if player patrol boat not yet reported as sunk
   sleep(1.5);  
 } //checkAfterComp
+
+// setMines() sets the mines on the game board according to the max number of mines allotted
+void setMines(char arr[10][10], int mineCount) {
+  int minesSet = 0;
+  while (minesSet < mineCount) {
+    int row = rand() % 10;
+    int col = rand() % 10;
+
+    if (arr[row][col] == '~') { // only set mines on empty spaces
+      arr[row][col] = '@';
+      minesSet++;
+    }
+  }
+}
