@@ -6,7 +6,7 @@
 #include <thread>
 #include <tuple>
 #include <vector>
-#include <windows.h>
+//#include <windows.h>
 #include <unistd.h>
 
 using std::cout;
@@ -50,6 +50,17 @@ int compPrevCol = -1;
 int oriPrevRow = -1;
 int oriPrevCol = -1;
 
+const char carrierChar = 'C';
+const char battleshipChar = 'B';
+const char destroyerChar = 'D';
+const char submarineChar = 'S';
+const char patrolChar = 'P';
+const char mineChar = '@';
+const char hitChar = 'X';
+const char missChar = 'O';
+const char hitMsgChar = 'x';
+const char missMsgChar = 'o';
+
 vector<tuple<int, int, char>> compLoggedCoordinates; //let the comp "remember" hit coordinates
 
 /* Function declarations */
@@ -58,8 +69,11 @@ void printWelcome();
 void askForDev();
 int askForMines();
 void initialize();
+void printError(string);
+void printAllBoards();
 void printGame(char arr[10][10], bool isPlayerBoard);
 void printComp(char arr[10][10], bool isCompBoard);
+void printPlayerAndCompBoards(bool, char [10][10], char [10][10]);
 bool occupiedSpace(int startRow, int startCol, int endRow, int endCol, bool isVertical, char arr[10][10]);
 void setPlayerShips();
 void setCompShips();
@@ -71,7 +85,7 @@ void setPatrol(char arr[10][10]);
 void setMines(char arr[10][10], int);
 
 bool supportsANSI();
-string formatCharacterANSI(char);
+string formatCharacterANSI(char, bool);
 
 void prompt();
 void playerFire(int row, int col);
@@ -106,18 +120,23 @@ int main() {
   sleep(1.5);
   setMines(playerBoard, mineCount);
   cout << "Placing " << mineCount << " mines around CPU fleet..." << endl;
+  cout << endl;
   sleep(1.5);
   setMines(compBoard, mineCount);
   
+  // TESTING: new board print function
+  //printAllBoards();
+
   while (!playerWon && !compWon) {
-    printGame(playerSonar, false);
-    printGame(playerBoard, true);
+    //printGame(playerSonar, false);
+    //printGame(playerBoard, true);
+    printAllBoards();
     
-    if (devMode) {
-      cout << "devMode = true, printing comp boards" << endl;
-      printComp(compSonar, false);
-      printComp(compBoard, true);
-    } //if devMode is set to true
+    //if (devMode) {
+    //  cout << "devMode = true, printing comp boards" << endl;
+    //  printComp(compSonar, false);
+    //  printComp(compBoard, true);
+    //} //if devMode is set to true
     
     prompt();
     checkAfterPlayer();
@@ -163,7 +182,7 @@ bool supportsANSI() {
     // Check if VTP is enabled
     return (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
   #else
-    // Unix-like systems: check TERM or COLORTERM
+    // Unix-like systems: check TERM or COLORTERM env variables
     const char* term = std::getenv("TERM");
     const char* colorterm = std::getenv("COLORTERM");
     return term || colorterm;
@@ -265,19 +284,127 @@ void initialize() {
 /*
   Take a character from a space on the board, and format it to
   the appropriate ANSI escape sequence (if supported by the terminal).
+  Return a string.
 */
-string formatCharacterANSI(char c) {
+string formatCharacterANSI(char c, bool isPlayer = false) {
   string formattedStr;
   switch(c) {
-    case 'C': formattedStr = "\033[31mC\033[0m"; break;
-    case 'B': formattedStr = "\033[32mB\033[0m"; break;
-    case 'D': formattedStr = "\033[34mD\033[0m"; break;
-    case 'S': formattedStr = "\033[33mS\033[0m"; break;
-    case 'P': formattedStr = "\033[36mP\033[0m"; break;
-    case '@': formattedStr = "\033[90m@\033[0m"; break;
+    //case carrierChar: formattedStr = "\033[31mC\033[0m"; break;
+    case carrierChar: formattedStr = "\033[31m" + string{c} + "\033[0m"; break;
+    case battleshipChar: formattedStr = "\033[32m" + string{c} + "\033[0m"; break;
+    case destroyerChar: formattedStr = "\033[34m" + string{c} + "\033[0m"; break;
+    case submarineChar: formattedStr = "\033[33m" + string{c} + "\033[0m"; break;
+    case patrolChar: formattedStr = "\033[36m" + string{c} + "\033[0m"; break;
+    case mineChar: formattedStr = "\033[90m" + string{c} + "\033[0m"; break;
+    case hitChar: 
+    case missChar: formattedStr = "\033[4;97m" + string{c} + "\033[0m"; break;
+    case hitMsgChar:
+      if (isPlayer) {
+        formattedStr = "\033[31mHIT!\033[0m Enemy Sustained Damage"; 
+      } else {
+        formattedStr = "\033[31mHIT!\033[0m You've Sustained Damage";
+      }
+      break;
+    case missMsgChar:
+      if (isPlayer) {
+        formattedStr = "\033[33mMISS!\033[0m Enemy Evaded Attack";
+      } else {
+        formattedStr = "\033[33mMISS!\033[0m You've Evaded Damage";
+      }
+      break;
     case '~': formattedStr = "~"; break;
   }
   return formattedStr;
+}
+
+/*
+  This function prints a given error message with
+  ANSI escape codes (if supported).
+*/
+void printError(string msg) {
+  if (ansi) {
+    cout << "\033[4;31mERROR: \033[0m" + msg << endl; 
+  } else {
+    cout << "ERROR: " << msg << endl;
+  }
+}
+
+/*
+  This function prints all of the game boards
+  (player sonar/fleet, cpu sonar/fleet [with DevMode]).
+*/
+void printAllBoards() {
+  if (devMode) {
+    printPlayerAndCompBoards(true, playerSonar, compSonar); // sonar
+    printPlayerAndCompBoards(false, playerBoard, compBoard); // fleet
+  } else {
+    printGame(playerSonar, false);
+    printGame(playerBoard, true);
+  }
+}
+
+/*
+  Only called from DevMode: print player fleet/sonar AND cpu fleet/sonar.
+*/
+void printPlayerAndCompBoards(bool isSonar, char playerBoard[10][10], char compBoard[10][10]) {
+  // GOAL: print player sonar and comp sonar side by side, with both fleets side by side below them
+  int currentRow = 0;
+  int currentCol = 0;
+  int count = 0;
+  bool blankSpace = false;
+
+  isSonar ? cout << "Your Sonar:" : cout << "Your Fleet:";
+  for (int s = 0; s < 87; s++) {
+    if (s == 34) {
+      isSonar ? cout << "Comp Sonar:" : cout << "Comp Fleet:";
+    } else {
+      cout << " ";
+    }
+  }
+  cout << endl;
+
+  // Print player sonar first, then comp sonar
+  for (int h = 0; h < 87; h++) { // loop for printing col indices
+    if (count % 4 == 0 && count != 0 && count != 11) { // 11th col is spacer between the boards
+      blankSpace ? cout << " " : cout << currentCol;
+      currentCol++;
+    } else {
+      cout << "-";
+    } // if-else for printing next column index or -
+    count++;
+    blankSpace = (count >= 44 && count <= 47);
+    if (count == 48) { // need to reset the col number when we switch over to the comp sonar
+      currentCol = 0;
+    }
+  } // print the top row;
+  cout << endl;
+
+  for (int i = 0; i < 10; i++) { // loop for printing row indices
+    cout << currentRow << " | ";
+    for (int j = 0; j < 20; j++) { // inner for traversing cols
+      if (j < 10) {
+        ansi ? cout << formatCharacterANSI(playerBoard[i][j]) : cout << playerBoard[i][j];
+      } else {
+        if (j == 10) { // need spaces to visually separate the two boards
+          cout << "    ";
+        }
+        ansi ? cout << formatCharacterANSI(compBoard[i][j-10]) : cout << compBoard[i][j-10];
+      }
+      cout << "   ";
+    }
+    currentRow++;
+    cout << "\n" << endl;
+  }
+  for (int k = 0; k < 87; k++) {
+    k == 44 ? cout << " " : cout << "-";
+  }
+  cout << endl;
+
+  if (isSonar) {
+    cout << string{hitChar} << " = HIT" << endl;
+    cout << string{missChar} << " = MISS" << endl;
+    cout << endl;
+  }
 }
 
 /*
@@ -323,8 +450,8 @@ void printGame(char arr[10][10], bool isPlayerBoard) {
   cout << endl;
 
   if (!isPlayerBoard) {
-    cout << "X = HIT" << endl;
-    cout << "O = MISS" << endl;
+    cout << string{hitChar} << " = HIT" << endl;
+    cout << string{missChar} << " = MISS" << endl;
     cout << endl;
   } //if printing player's sonar
 } //printGame function
@@ -359,7 +486,7 @@ void printComp(char arr[10][10], bool isCompBoard) {
   for (int i = 0; i < 10; i++) {
     cout << currentRow << " | ";
     for (int j = 0; j < 10; j++) {
-      cout << arr[i][j] << " | ";
+      ansi ? cout << formatCharacterANSI(arr[i][j]) << " | ": cout << arr[i][j] << " | ";
     } //inner for traversing columns
     currentRow++;
     cout << endl;
@@ -370,8 +497,8 @@ void printComp(char arr[10][10], bool isCompBoard) {
   cout << endl;
 
   if (!isCompBoard) {
-    cout << "X = HIT" << endl;
-    cout << "O = MISS" << endl;
+    cout << string{hitChar} << " = HIT" << endl;
+    cout << string{missChar} << " = MISS" << endl;
     cout << endl;
   } //if printing comp sonar
 } //printComp
@@ -462,7 +589,7 @@ void setCarrier(char arr[10][10]) {
     endCol = startCol;
 
     for (int i = startRow; i <= endRow; i++) {
-      arr[i][endCol] = 'C';
+      arr[i][endCol] = carrierChar;
     }
 
   } else {
@@ -470,7 +597,7 @@ void setCarrier(char arr[10][10]) {
     endCol = startCol + 4;
 
     for (int i = startCol; i <= endCol; i++) {
-      arr[endRow][i] = 'C';
+      arr[endRow][i] = carrierChar;
     }
   }
 } //setCarrier
@@ -517,16 +644,13 @@ void setBattleship(char arr[10][10]) {
     endRow = startRow + 3;
     endCol = startCol;
 
-    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
-
+    if (!occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr)) {
       for (int i = startRow; i <= endRow; i++) {
         if (arr[i][endCol] == '~') {
-	  arr[i][endCol] = 'B';
-	}
+	        arr[i][endCol] = battleshipChar;
+	      }
       }
-    } //if space is available for the battleship
-
-    else {
+    } else {
       setBattleship(arr);
       return;
     } //restart the process via recursion to place the battleship
@@ -535,16 +659,13 @@ void setBattleship(char arr[10][10]) {
     endRow = startRow;
     endCol = startCol + 3;
 
-    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
-
+    if (!occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr)) {
       for (int i = startCol; i <= endCol; i++) {
-	if (arr[endRow][i] == '~') {
-          arr[endRow][i] = 'B';
-	}
+	      if (arr[endRow][i] == '~') {
+          arr[endRow][i] = battleshipChar;
+	      }
       }
-    } //if space is available for the battleship
-
-    else {
+    } else {
       setBattleship(arr);
       return;
     } //restart the process via recursion to place the battleship
@@ -595,13 +716,11 @@ void setDestroyer(char arr[10][10]) {
     endRow = startRow + 2;
     endCol = startCol;
 
-    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+    if (!occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr)) {
       for (int i = startRow; i <= endRow; i++) {
-	arr[i][endCol] = 'D';
+	      arr[i][endCol] = destroyerChar;
       } //for-loop placing all destroyer spaces
-    } //if space is available for vertical placement
-
-    else {
+    } else {
       setDestroyer(arr);
       return;
     } //restart process via recusion to place the destroyer
@@ -610,13 +729,11 @@ void setDestroyer(char arr[10][10]) {
     endRow = startRow;
     endCol = startCol + 2;
 
-    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+    if (!occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr)) {
       for (int j = startCol; j <= endCol; j++) {
-	arr[endRow][j] = 'D';
+	      arr[endRow][j] = destroyerChar;
       }
-    } //if space is available for horizontal placement
-
-    else {
+    } else {
       setDestroyer(arr);
       return;
     } //restart the process via recursion to place the destroyer
@@ -668,13 +785,11 @@ void setSubmarine(char arr[10][10]) {
     endRow = startRow + 2;
     endCol = startCol;
 
-    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+    if (!occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr)) {
       for (int i = startRow; i <= endRow; i++) {
-	arr[i][endCol] = 'S';
+	      arr[i][endCol] = submarineChar;
       } //for-loop placing all submarine pieces
-    } //if space is available for vertical placement
-
-    else {
+    } else {
       setSubmarine(arr);
       return;
     } //restart the process via recursion to place the submarine
@@ -683,13 +798,11 @@ void setSubmarine(char arr[10][10]) {
     endRow = startRow;
     endCol = startCol + 2;
 
-    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+    if (!occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr)) {
       for (int j = startCol; j <= endCol; j++) {
-	arr[endRow][j] = 'S';
+	      arr[endRow][j] = submarineChar;
       } //for-loop placing all submarine pieces
-    } //if space is available for horizontal placement
-
-    else {
+    } else {
       setSubmarine(arr);
       return;
     } //restart process via recursion to place the submarine
@@ -740,13 +853,11 @@ void setPatrol(char arr[10][10]) {
     endRow = startRow + 1;
     endCol = startCol;
 
-    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+    if (!occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr)) {
       for (int i = startRow; i <= endRow; i++) {
-	arr[i][endCol] = 'P';
+	      arr[i][endCol] = patrolChar;
       } //for-loop placing all patrol pieces
-    } //if space is available for vertical placement
-
-    else {
+    } else {
       setPatrol(arr);
       return;
     } //restart the process via recursion to place the patrol boat
@@ -755,13 +866,11 @@ void setPatrol(char arr[10][10]) {
     endRow = startRow;
     endCol = startCol + 1;
 
-    if (occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr) == false) {
+    if (!occupiedSpace(startRow, startCol, endRow, endCol, isVertical, arr)) {
       for (int j = startCol; j <= endCol; j++) {
-	arr[endRow][j] = 'P';
+	      arr[endRow][j] = patrolChar;
       } //for-loop placing all patrol pieces
-    } //if space is available for horizontal placement
-
-    else {
+    } else {
       setPatrol(arr);
       return;
     } //restart process via recursion to place the patrol boat
@@ -794,7 +903,7 @@ void prompt() {
     if (rowCoor >= 0 && rowCoor <= 9) {
       rowGood = true;
     } else {
-      cout << "ERROR: Row out of range" << endl;
+      printError("Row out of range [0,9]");
     } //if-else
   } //while validating row input
 
@@ -806,7 +915,7 @@ void prompt() {
     if (colCoor >= 0 && colCoor <= 9) {
       colGood = true;
     } else {
-      cout << "ERROR: Column out of range" << endl;
+      printError("Column out of range [0,9]");
     } //of-else
   } //while validating col input
   playerFire(rowCoor, colCoor);
@@ -832,11 +941,15 @@ void playerFire(int row, int col) {
     return;
   } //if user enters coordinates already used
 
-  if (compBoard[row][col] != '~' && compBoard[row][col] != '@') { // if player scores a hit against the computer
+  if (compBoard[row][col] != '~' && compBoard[row][col] != mineChar) { // if player scores a hit against the computer
     compBoard[row][col] = '!';
-    playerSonar[row][col] = 'X';
-    cout << "HIT! Enemy Sustained Damage" << endl;
-  } else if (compBoard[row][col] == '@') { // if player hits a mine in the CPU fleet
+    playerSonar[row][col] = hitChar;
+    if (ansi) {
+      cout << formatCharacterANSI(hitMsgChar, true) << endl;
+    } else {
+      cout << "HIT! Enemy Sustained Damage" << endl;
+    }
+  } else if (compBoard[row][col] == mineChar) { // if player hits a mine in the CPU fleet
     array<tuple<int, int>, 5> blastCoordinates = {
       std::make_tuple(row, col),
       std::make_tuple(row + 1, col),
@@ -851,20 +964,28 @@ void playerFire(int row, int col) {
       int new_row = std::get<0>(blastCoordinates[i]);
   
       if (new_col >= 0 && new_col <= 9 && new_row >= 0 && new_row <= 9) {
-        if (compBoard[new_row][new_col] != '~') {
+        if (compBoard[new_row][new_col] != '~' && compBoard[new_row][new_col] != mineChar) {
           compBoard[new_row][new_col] = '!';
-          playerSonar[new_row][new_col] = 'X';
-          cout << "HIT! Enemy Sustained Damage at (" << new_row << ", " << new_col << ")" << endl;
+          playerSonar[new_row][new_col] = hitChar;
+          if (ansi) {
+            cout << formatCharacterANSI(hitMsgChar, true) << " at (" << new_row << ", " << new_col << ")" << endl;
+          } else {
+            cout << "HIT! Enemy Sustained Damage at (" << new_row << ", " << new_col << ")" << endl;
+          }
         } else {
-          playerSonar[new_row][new_col] = 'O';
+          playerSonar[new_row][new_col] = missChar;
         }
       }
     }
   }
 
   else {
-    playerSonar[row][col] = 'O';
-    cout << "MISS! Enemy Evaded Attack" << endl;
+    playerSonar[row][col] = missChar;
+    if (ansi) {
+      cout << formatCharacterANSI(missMsgChar, true) << endl;
+    } else {
+      cout << "MISS! Enemy Evaded Attack" << endl;
+    }
   } //else (if user misses)
 
   sleep(2);
@@ -908,12 +1029,16 @@ void compFire(int row, int col) {
   sleep(2);
   
   char target = playerBoard[row][col];
-  if (target != '~' && target != '!') {
+  if (target != '~' && target != '!' && target != mineChar) {
     pushCoordinates(row, col, target);
     //printLoggedCoordinates();
     playerBoard[row][col] = '!';
-    cout << "HIT! You've sustained damage at (" << row << ", " << col << ")" << endl;
-    compSonar[row][col] = 'X';
+    compSonar[row][col] = hitChar;
+    if (ansi) {
+      cout << formatCharacterANSI(hitMsgChar) <<  " at (" << row << ", " << col << ")" << endl;
+    } else {
+      cout << "HIT! You've sustained damage at (" << row << ", " << col << ")" << endl;
+    }
     if (oriPrevRow == -1 && oriPrevCol == -1) {
       oriPrevRow = row;
       oriPrevCol = col;
@@ -924,8 +1049,12 @@ void compFire(int row, int col) {
   } //if player takes a hit
   
   else {
-    cout << "MISS! You've evaded damage at (" << row << ", " << col << ")" << endl;
-    compSonar[row][col] = 'O';
+    if (ansi) {
+      cout << formatCharacterANSI(missMsgChar) << " at (" << row << ", " << col << ")" << endl;
+    } else {
+      cout << "MISS! You've Evaded Damage at (" << row << ", " << col << ")" << endl;
+    }
+    compSonar[row][col] = missChar;
   } //else (computer missed)
   
   sleep(2);
@@ -1175,31 +1304,31 @@ bool checkVessel(char arr[10][10], char code) {
 
 void checkAfterPlayer() {
   if (!cCsunk) {
-    cCsunk = checkVessel(compBoard, 'C');
+    cCsunk = checkVessel(compBoard, carrierChar);
     if (cCsunk)
       cout << "You've sunk the enemy \033[4;31mCarrier!\033[0m" << endl;
   } //if comp carrier not yet reported as sunk
 
   if (!cDsunk) {
-    cDsunk = checkVessel(compBoard, 'D');
+    cDsunk = checkVessel(compBoard, destroyerChar);
     if (cDsunk)
       cout << "You've sunk the enemy \033[4;34mDestroyer!\033[0m" << endl;
   } //if comp destroyer not yet reported as sunk
 
   if (!cBsunk) {
-    cBsunk = checkVessel(compBoard, 'B');
+    cBsunk = checkVessel(compBoard, battleshipChar);
     if (cBsunk)
       cout << "You've sunk the enemy \033[4;32mBattleship!\033[0m" << endl;
   } //if comp battleship not yet reported as sunk
 
   if (!cSsunk) {
-    cSsunk = checkVessel(compBoard, 'S');
+    cSsunk = checkVessel(compBoard, submarineChar);
     if (cSsunk)
       cout << "You've sunk the enemy \033[4;33mSubmarine!\033[0m" << endl;
   } //if comp submarine not yet reported as sunk
 
   if (!cPsunk) {
-    cPsunk = checkVessel(compBoard, 'P');
+    cPsunk = checkVessel(compBoard, patrolChar);
     if (cPsunk)
       cout << "You've sunk the enemy \033[4;36mPatrol Boat!\033[0m" << endl;
   } //if comp patrol boat not yet reported as sunk
@@ -1252,10 +1381,10 @@ void assignNewCoordinates() {
 void checkAfterComp() {
 
   if (!pCsunk) {
-    pCsunk = checkVessel(playerBoard, 'C');
+    pCsunk = checkVessel(playerBoard, carrierChar);
     if (pCsunk) {
-      cout << "Your \033[4;31mCarrier\033[0m has been sunk!" << endl;
-      scrubLoggedCoordinates('C');
+      cout << "Your " << formatCharacterANSI(carrierChar) << " has been sunk!" << endl;
+      scrubLoggedCoordinates(carrierChar);
       assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
@@ -1263,10 +1392,10 @@ void checkAfterComp() {
   } //if player carrier not yet reported as sunk
 
   if (!pDsunk) {
-    pDsunk = checkVessel(playerBoard, 'D');
+    pDsunk = checkVessel(playerBoard, destroyerChar);
     if (pDsunk) {
-      cout << "Your \033[4;34mDestroyer\033[0m has been sunk!" << endl;
-      scrubLoggedCoordinates('D');
+      cout << "Your " << formatCharacterANSI(destroyerChar) << " has been sunk!" << endl;
+      scrubLoggedCoordinates(destroyerChar);
       assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
@@ -1274,10 +1403,10 @@ void checkAfterComp() {
   } //if player destroyer not yet reported as sunk
 
   if (!pBsunk) {
-    pBsunk = checkVessel(playerBoard, 'B');
+    pBsunk = checkVessel(playerBoard, battleshipChar);
     if (pBsunk) {
-      cout << "Your \033[4;32mBattleship\033[0m has been sunk!" << endl;
-      scrubLoggedCoordinates('B');
+      cout << "Your " << formatCharacterANSI(battleshipChar) << " has been sunk!" << endl;
+      scrubLoggedCoordinates(battleshipChar);
       assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
@@ -1285,10 +1414,10 @@ void checkAfterComp() {
   } //if player battleship not yet reported as sunk
 
   if (!pSsunk) {
-    pSsunk = checkVessel(playerBoard, 'S');
+    pSsunk = checkVessel(playerBoard, submarineChar);
     if (pSsunk) {
-      cout << "Your \033[4;33mSubmarine\033[0m has been sunk!" << endl;
-      scrubLoggedCoordinates('S');
+      cout << "Your " << formatCharacterANSI(submarineChar) << " has been sunk!" << endl;
+      scrubLoggedCoordinates(submarineChar);
       assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
@@ -1296,10 +1425,10 @@ void checkAfterComp() {
   } //if player sub not yet reported as sunk
 
   if (!pPsunk) {
-    pPsunk = checkVessel(playerBoard, 'P');
+    pPsunk = checkVessel(playerBoard, patrolChar);
     if (pPsunk) {
-      cout << "Your \033[4;36mPatrol Boat\033[0m has been sunk!" << endl;
-      scrubLoggedCoordinates('P');
+      cout << "Your " << formatCharacterANSI(patrolChar) << " has been sunk!" << endl;
+      scrubLoggedCoordinates(patrolChar);
       assignNewCoordinates();
       oriPrevRow = -1;
       oriPrevCol = -1;
@@ -1316,7 +1445,7 @@ void setMines(char arr[10][10], int mineCount) {
     int col = rand() % 10;
 
     if (arr[row][col] == '~') { // only set mines on empty spaces
-      arr[row][col] = '@';
+      arr[row][col] = mineChar;
       minesSet++;
     }
   }
